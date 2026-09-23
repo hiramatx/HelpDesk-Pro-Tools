@@ -1,0 +1,28 @@
+// Script buttons for the Scripts card. One array per tab.
+//   name        - button text
+//   path        - .ps1 file; absolute, UNC, or relative to this file's folder
+//   arguments   - optional; {PC} is replaced with the Remote PC name (and makes the PC name required)
+//   description - optional tooltip
+// Edit this file (next to HelpDeskProTools.exe) and press "Reload" in the app.
+{
+  "Testing": [
+    {
+      "name": "Test WinRM",
+      "path": "Scripts\\Testing\\Test-WinRM.ps1",
+      "arguments": "-ComputerName {PC}",
+      "description": "Checks that PowerShell remoting works on the Remote PC"
+    }
+  ],
+  "Tools": [],
+  "Fixes": [],
+  "GAD": [],
+  "Utilities": [
+    {
+      "name": "Get Uptime",
+      "path": "Scripts\\Utilities\\Get-Uptime.ps1",
+      "arguments": "-ComputerName {PC}",
+      "description": "Shows last boot time and uptime for the Remote PC"
+    }
+  ],
+  "Installs": []
+}
