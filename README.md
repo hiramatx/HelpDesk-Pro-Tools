@@ -3,6 +3,13 @@
 IT help-desk toolkit for running admin tasks against domain PCs.
 Avalonia UI 12 · .NET 10 · MVVM (CommunityToolkit.Mvvm) · Designed by Hiram Martinez.
 
+## Download
+
+**[Download the latest release](https://github.com/hiramatx/HelpDesk-Pro-Tools/releases/latest)** (Windows x64 zip)
+
+1. Install the [.NET 10 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/10.0) if it isn't already installed.
+2. Extract the zip and run `HelpDeskProTools.exe`, ideally as your `-admin` account.
+
 ## Features
 
 The main window opens as tall as the monitor's usable area (screen minus taskbar); on short screens the cards scroll.
