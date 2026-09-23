@@ -1,0 +1,181 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:HelpDesk_Pro_Tools.ViewModels"
+        x:Class="HelpDesk_Pro_Tools.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="HelpDesk Pro Tools"
+        Width="950" Height="1075"
+        MinWidth="760" MinHeight="500"
+        WindowStartupLocation="CenterScreen">
+
+    <!-- Height is fitted to the monitor at startup (see code-behind). On short screens the
+         cards scroll instead of the Scripts card being squeezed away. -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="18,16">
+
+        <!-- ============================================================ 1. Header -->
+        <Border Grid.Row="0" Classes="card" Margin="0,0,0,14">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel VerticalAlignment="Center" Spacing="2">
+                    <TextBlock Text="HelpDesk Pro Tools" FontSize="24" FontWeight="Bold" />
+                    <TextBlock Text="Designed by Hiram Martinez" FontSize="12" Classes="muted" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Spacing="4">
+                    <!-- Theme toggle: sun = light, moon = dark -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
+                        <Path Classes="icon" Classes.active="{Binding !IsDarkTheme}"
+                              Data="M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8Z M12 2v2 M12 20v2 M4.93 4.93l1.41 1.41 M17.66 17.66l1.41 1.41 M2 12h2 M20 12h2 M6.34 17.66l-1.41 1.41 M19.07 4.93l-1.41 1.41"
+                              ToolTip.Tip="Light theme" />
+                        <ToggleSwitch IsChecked="{Binding IsDarkTheme}"
+                                      OnContent="{x:Null}" OffContent="{x:Null}"
+                                      MinWidth="0" Padding="0"
+                                      ToolTip.Tip="Toggle light / dark theme" />
+                        <Path Classes="icon" Classes.active="{Binding IsDarkTheme}"
+                              Data="M12 3a6 6 0 0 0 9 9a9 9 0 1 1-9-9Z"
+                              ToolTip.Tip="Dark theme" />
+                    </StackPanel>
+
+                    <!-- Account indicator: green for -admin accounts, dark orange otherwise -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="7">
+                        <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                                 Fill="{StaticResource AdminIndicatorBrush}"
+                                 IsVisible="{Binding IsAdminAccount}"
+                                 ToolTip.Tip="Running as an admin account" />
+                        <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                                 Fill="{StaticResource StandardIndicatorBrush}"
+                                 IsVisible="{Binding !IsAdminAccount}"
+                                 ToolTip.Tip="Not running as an -admin account" />
+                        <TextBlock Text="{Binding UserName}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ============================================================ 2. Remote PC -->
+        <Border Grid.Row="1" Classes="card" Margin="0,0,0,14">
+            <StackPanel>
+                <TextBlock Classes="cardTitle" Text="Remote PC" />
+                <Grid ColumnDefinitions="*,Auto">
+                    <!-- Editable ComboBox: Text is the single source of truth, so a name picked
+                         from history is used exactly like a typed one. -->
+                    <ComboBox x:Name="PcComboBox"
+                              IsEditable="True"
+                              ItemsSource="{Binding PcHistory}"
+                              Text="{Binding PcName, Mode=TwoWay}"
+                              PlaceholderText="Type or select a PC name"
+                              HorizontalAlignment="Stretch"
+                              Height="38" Margin="4" FontSize="14"
+                              VerticalContentAlignment="Center">
+                        <ComboBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Clear history" Command="{Binding ClearHistoryCommand}" />
+                            </ContextMenu>
+                        </ComboBox.ContextMenu>
+                    </ComboBox>
+                    <Button Grid.Column="1" Classes="flat blue" Content="Get PC Details"
+                            MinWidth="170" Command="{Binding GetPcDetailsCommand}" />
+                </Grid>
+                <TextBlock Text="{Binding ValidationMessage}"
+                           IsVisible="{Binding ValidationMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                           Foreground="{StaticResource RedBrush}" FontSize="12" Margin="8,2,0,0" />
+            </StackPanel>
+        </Border>
+
+        <!-- ============================================================ 3. Remote Tools -->
+        <Border Grid.Row="2" Classes="card" Margin="0,0,0,14">
+            <StackPanel>
+                <TextBlock Classes="cardTitle" Text="Remote Tools" />
+                <UniformGrid Columns="2">
+                    <Button Classes="flat" Content="SFC Scan" Command="{Binding SfcScanCommand}"
+                            ToolTip.Tip="DISM RestoreHealth + SFC /scannow on the remote PC" />
+                    <Button Classes="flat" Content="Remote PS" Command="{Binding RemotePsCommand}"
+                            ToolTip.Tip="Interactive PowerShell remoting session" />
+
+                    <Button Classes="flat" Content="Cleanup Temp Folders" Command="{Binding CleanupTempCommand}"
+                            ToolTip.Tip="Windows Temp, user Temp, Recycle Bin, Edge and Chrome caches" />
+                    <Button Classes="flat" Content="Download Log Files" Command="{Binding DownloadLogsCommand}"
+                            ToolTip.Tip="Event logs (System/Application/Setup), CBS, DISM, Panther, CCM → Desktop\RemoteLogs" />
+
+                    <Button Classes="flat" Content="Ping PC" Command="{Binding PingCommand}" />
+                    <Button Classes="flat" Content="C Share" Command="{Binding CShareCommand}"
+                            ToolTip.Tip="Opens \\PC\c$ and your profile folder on the PC" />
+
+                    <Button Classes="flat cyan" Content="Remote Assist" Command="{Binding RemoteAssistCommand}"
+                            ToolTip.Tip="msra.exe /offerra" />
+                    <Button Classes="flat green" Content="Remote Admin" Command="{Binding RemoteAdminCommand}"
+                            ToolTip.Tip="Remote Desktop (mstsc /admin)" />
+
+                    <Button Classes="flat" Content="Computer Management" Command="{Binding ComputerManagementCommand}" />
+                    <Button Classes="flat red" Content="Reboot PC" Command="{Binding RebootPcCommand}" />
+
+                    <Button Classes="flat" Content="Send Message" Command="{Binding SendMessageCommand}" />
+                </UniformGrid>
+            </StackPanel>
+        </Border>
+
+        <!-- ============================================================ 4. Local Tools -->
+        <Border Grid.Row="3" Classes="card" Margin="0,0,0,14">
+            <StackPanel>
+                <TextBlock Classes="cardTitle" Text="Local Tools" />
+                <UniformGrid Columns="2">
+                    <Button Classes="flat" Content="AD Console" Command="{Binding AdConsoleCommand}"
+                            ToolTip.Tip="Active Directory Users and Computers (dsa.msc)" />
+                    <Button Classes="flat" Content="Windows Terminal" Command="{Binding WindowsTerminalCommand}" />
+                </UniformGrid>
+            </StackPanel>
+        </Border>
+
+        <!-- ============================================================ 5. Scripts -->
+        <Border Grid.Row="4" Classes="card" MinHeight="240">
+            <Grid RowDefinitions="Auto,*">
+                <Grid ColumnDefinitions="*,Auto,Auto">
+                    <TextBlock Classes="cardTitle" Text="Scripts" />
+                    <Button Grid.Column="1" Classes="flat" Content="Edit scripts.json" Height="30" FontSize="12"
+                            HorizontalAlignment="Right" Command="{Binding OpenScriptCatalogCommand}" />
+                    <Button Grid.Column="2" Classes="flat" Content="Reload" Height="30" FontSize="12"
+                            HorizontalAlignment="Right" Command="{Binding LoadScriptsCommand}" />
+                </Grid>
+
+                <TabControl Grid.Row="1" Classes="flatTabs" Padding="0,8,0,0"
+                            ItemsSource="{Binding ScriptTabs}"
+                            SelectedItem="{Binding SelectedScriptTab}">
+                    <TabControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ScriptCategoryViewModel">
+                            <TextBlock Text="{Binding Name}" />
+                        </DataTemplate>
+                    </TabControl.ItemTemplate>
+                    <TabControl.ContentTemplate>
+                        <DataTemplate x:DataType="vm:ScriptCategoryViewModel">
+                            <Grid>
+                                <TextBlock IsVisible="{Binding IsEmpty}" Classes="muted" Margin="6,10"
+                                           TextWrapping="Wrap"
+                                           Text="No scripts in this tab yet. Click &quot;Edit scripts.json&quot; to add some, then Reload." />
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding Scripts}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Columns="3" VerticalAlignment="Top" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:ScriptItemViewModel">
+                                                <Button Classes="flat" Command="{Binding RunCommand}"
+                                                        ToolTip.Tip="{Binding ToolTip}"
+                                                        Classes.missing="{Binding !Exists}">
+                                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Grid>
+                        </DataTemplate>
+                    </TabControl.ContentTemplate>
+                </TabControl>
+            </Grid>
+        </Border>
+    </Grid>
+    </ScrollViewer>
+</Window>

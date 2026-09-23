@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:HelpDesk_Pro_Tools.ViewModels"
+        x:Class="HelpDesk_Pro_Tools.Views.OutputWindow"
+        x:DataType="vm:OutputViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="{Binding Title}"
+        Width="780" Height="560" MinWidth="480" MinHeight="300"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="16">
+        <Border Classes="card" Margin="0,0,0,12">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="Bold" />
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Ellipse Width="9" Height="9" Fill="{StaticResource GreenBrush}" IsVisible="{Binding Succeeded}" VerticalAlignment="Center" />
+                        <Ellipse Width="9" Height="9" Fill="{StaticResource RedBrush}" IsVisible="{Binding Failed}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Status}" Classes="muted" FontSize="12" />
+                    </StackPanel>
+                </StackPanel>
+                <ProgressBar Grid.Column="1" IsIndeterminate="True" IsVisible="{Binding IsRunning}"
+                             Width="140" VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Classes="card" Padding="4">
+            <TextBox x:Name="LogBox"
+                     Text="{Binding LogText}"
+                     IsReadOnly="True"
+                     AcceptsReturn="True"
+                     TextWrapping="NoWrap"
+                     FontFamily="Cascadia Mono,Consolas,monospace"
+                     FontSize="12.5"
+                     BorderThickness="0"
+                     Background="{DynamicResource ConsoleBgBrush}"
+                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto" />
+        </Border>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Classes="flat red" Content="Cancel" Width="110" Command="{Binding CancelCommand}"
+                    IsVisible="{Binding IsRunning}" />
+            <Button Classes="flat primary" Content="Close" Width="110" Click="Close_Click" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -1,0 +1,19 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="HelpDesk_Pro_Tools.Views.MessageDialog"
+        Icon="/Assets/avalonia-logo.ico"
+        Width="440" SizeToContent="Height"
+        CanResize="False" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+
+    <Border Classes="card" Margin="16">
+        <StackPanel Spacing="14">
+            <TextBlock x:Name="HeadingText" FontSize="18" FontWeight="Bold" />
+            <TextBlock x:Name="MessageText" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="CancelButton" Classes="flat" Content="Cancel" Width="110" Click="Cancel_Click" />
+                <Button x:Name="ConfirmButton" Classes="flat primary" Content="OK" Width="110" Click="Confirm_Click" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

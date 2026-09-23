@@ -1,0 +1,46 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:HelpDesk_Pro_Tools.ViewModels"
+        x:Class="HelpDesk_Pro_Tools.Views.SendMessageWindow"
+        x:DataType="vm:SendMessageViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="{Binding PcName, StringFormat='Send Message - {0}'}"
+        Width="520" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner">
+
+    <Border Classes="card" Margin="16">
+        <StackPanel Spacing="10">
+            <TextBlock FontSize="18" FontWeight="Bold" Text="{Binding PcName, StringFormat='Send Message to {0}'}" />
+            <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                       Text="Shown as a pop-up to every user session on the PC (msg.exe)." />
+
+            <TextBox x:Name="MessageInput"
+                     Text="{Binding Message}"
+                     AcceptsReturn="True" TextWrapping="Wrap"
+                     Height="150" MaxLength="250"
+                     PlaceholderText="Type your message..." />
+
+            <Grid ColumnDefinitions="Auto,Auto,*">
+                <TextBlock Text="Display for" VerticalAlignment="Center" Margin="4,0,8,0" />
+                <NumericUpDown Grid.Column="1" Value="{Binding DisplayMinutes}" Minimum="1" Maximum="1440"
+                               Increment="1" FormatString="0" Width="120" />
+                <TextBlock Grid.Column="2" Text="minutes" VerticalAlignment="Center" Margin="8,0,0,0" />
+            </Grid>
+
+            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12"
+                       IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                       Classes.error="{Binding IsError}">
+                <TextBlock.Styles>
+                    <Style Selector="TextBlock.error">
+                        <Setter Property="Foreground" Value="{StaticResource RedBrush}" />
+                    </Style>
+                </TextBlock.Styles>
+            </TextBlock>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Classes="flat" Content="Close" Width="110" Click="Close_Click" />
+                <Button Classes="flat primary" Content="Send" Width="110" Command="{Binding SendCommand}" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

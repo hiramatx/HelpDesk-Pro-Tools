@@ -1,0 +1,76 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="HelpDesk_Pro_Tools.App"
+             RequestedThemeVariant="Light">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+
+                <!-- Light theme: neutral greys -->
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="AccentBrush" Color="#1F2937" />
+                    <SolidColorBrush x:Key="AccentFgBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="AccentSoftBrush" Color="#E5E7EB" />
+                    <SolidColorBrush x:Key="WindowBgBrush" Color="#F3F4F6" />
+                    <SolidColorBrush x:Key="CardBgBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="CardBorderBrush" Color="#E5E7EB" />
+                    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#111827" />
+                    <SolidColorBrush x:Key="TextMutedBrush" Color="#6B7280" />
+                    <SolidColorBrush x:Key="FlatButtonBgBrush" Color="#F3F4F6" />
+                    <SolidColorBrush x:Key="FlatButtonHoverBrush" Color="#E5E7EB" />
+                    <SolidColorBrush x:Key="FlatButtonPressedBrush" Color="#D1D5DB" />
+                    <SolidColorBrush x:Key="FlatButtonFgBrush" Color="#1F2937" />
+                    <SolidColorBrush x:Key="GaugeTrackBrush" Color="#F3F4F6" />
+                    <SolidColorBrush x:Key="ConsoleBgBrush" Color="#F9FAFB" />
+                    <BoxShadows x:Key="CardShadow">0 2 8 0 #14000000</BoxShadows>
+                </ResourceDictionary>
+
+                <!-- Dark theme: neutral greys -->
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="AccentBrush" Color="#E5E7EB" />
+                    <SolidColorBrush x:Key="AccentFgBrush" Color="#111827" />
+                    <SolidColorBrush x:Key="AccentSoftBrush" Color="#2D2D30" />
+                    <SolidColorBrush x:Key="WindowBgBrush" Color="#121212" />
+                    <SolidColorBrush x:Key="CardBgBrush" Color="#1E1E1E" />
+                    <SolidColorBrush x:Key="CardBorderBrush" Color="#2E2E2E" />
+                    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F3F4F6" />
+                    <SolidColorBrush x:Key="TextMutedBrush" Color="#9CA3AF" />
+                    <SolidColorBrush x:Key="FlatButtonBgBrush" Color="#2A2A2A" />
+                    <SolidColorBrush x:Key="FlatButtonHoverBrush" Color="#353535" />
+                    <SolidColorBrush x:Key="FlatButtonPressedBrush" Color="#404040" />
+                    <SolidColorBrush x:Key="FlatButtonFgBrush" Color="#E5E7EB" />
+                    <SolidColorBrush x:Key="GaugeTrackBrush" Color="#2A2A2A" />
+                    <SolidColorBrush x:Key="ConsoleBgBrush" Color="#161616" />
+                    <BoxShadows x:Key="CardShadow">0 2 8 0 #40000000</BoxShadows>
+                </ResourceDictionary>
+
+            </ResourceDictionary.ThemeDictionaries>
+
+            <!-- Theme-independent accent button colours -->
+            <SolidColorBrush x:Key="BlueBrush" Color="#2563EB" />
+            <SolidColorBrush x:Key="BlueHoverBrush" Color="#1D4ED8" />
+            <SolidColorBrush x:Key="CyanBrush" Color="#0891B2" />
+            <SolidColorBrush x:Key="CyanHoverBrush" Color="#0E7490" />
+            <SolidColorBrush x:Key="GreenBrush" Color="#16A34A" />
+            <SolidColorBrush x:Key="GreenHoverBrush" Color="#15803D" />
+            <SolidColorBrush x:Key="RedBrush" Color="#DC2626" />
+            <SolidColorBrush x:Key="RedHoverBrush" Color="#B91C1C" />
+            <SolidColorBrush x:Key="YellowBrush" Color="#EAB308" />
+            <SolidColorBrush x:Key="DarkTextBrush" Color="#111827" />
+            <SolidColorBrush x:Key="AdminIndicatorBrush" Color="#22C55E" />
+            <SolidColorBrush x:Key="StandardIndicatorBrush" Color="#FF8C00" />
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme>
+            <FluentTheme.Palettes>
+                <!-- Neutral accent for built-in controls (toggle switch, focus borders, etc.) -->
+                <ColorPaletteResources x:Key="Light" Accent="#4B5563" />
+                <ColorPaletteResources x:Key="Dark" Accent="#9CA3AF" />
+            </FluentTheme.Palettes>
+        </FluentTheme>
+        <StyleInclude Source="avares://HelpDeskProTools/Themes/AppStyles.axaml" />
+    </Application.Styles>
+</Application>

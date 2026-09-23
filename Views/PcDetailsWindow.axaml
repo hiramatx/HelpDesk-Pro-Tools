@@ -1,0 +1,169 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:HelpDesk_Pro_Tools.ViewModels"
+        xmlns:m="using:HelpDesk_Pro_Tools.Models"
+        xmlns:c="using:HelpDesk_Pro_Tools.Controls"
+        x:Class="HelpDesk_Pro_Tools.Views.PcDetailsWindow"
+        x:DataType="vm:PcDetailsViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="{Binding PcName, StringFormat='PC Details - {0}'}"
+        Width="760" Height="900" MinWidth="600" MinHeight="500"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.Styles>
+        <Style Selector="c|LiquidFillGauge">
+            <Setter Property="Width" Value="150" />
+            <Setter Property="Height" Value="150" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="TrackBrush" Value="{DynamicResource GaugeTrackBrush}" />
+            <Setter Property="TextBrush" Value="{DynamicResource TextPrimaryBrush}" />
+            <!-- Liquid colour by usage: 0-50% green, 51-85% yellow, 86-100% red -->
+            <Setter Property="NormalBrush" Value="{StaticResource GreenBrush}" />
+            <Setter Property="WarningBrush" Value="{StaticResource YellowBrush}" />
+            <Setter Property="CriticalBrush" Value="{StaticResource RedBrush}" />
+            <Setter Property="WarningLiquidTextBrush" Value="{StaticResource DarkTextBrush}" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*" Margin="16">
+
+        <!-- PC name / OU header -->
+        <Border Classes="card" Margin="0,0,0,12">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="3">
+                    <TextBlock Text="{Binding PcName}" FontSize="22" FontWeight="Bold" />
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Classes="label" Text="OU:" />
+                        <TextBlock Text="{Binding PcOu}" FontSize="12" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <TextBlock Classes="label" IsVisible="{Binding HasData}">
+                        <Run Text="{Binding OperatingSystem}" />
+                        <Run Text="  •  " />
+                        <Run Text="{Binding Uptime}" />
+                    </TextBlock>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <ProgressBar IsIndeterminate="True" Width="90" IsVisible="{Binding IsLoading}" />
+                    <Button Classes="flat primary" Content="Refresh" Width="100" Command="{Binding RefreshCommand}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12" Margin="0,0,4,8">
+
+                <!-- Connection error -->
+                <Border Classes="card" IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource RedBrush}" TextWrapping="Wrap" />
+                </Border>
+
+                <Border Classes="card" IsVisible="{Binding IsLoading}">
+                    <TextBlock Classes="muted" Text="Collecting details over WMI..." HorizontalAlignment="Center" Margin="0,20" />
+                </Border>
+
+                <StackPanel Spacing="12" IsVisible="{Binding HasData}">
+
+                    <!-- Gauges -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="cardTitle" Text="Utilization" />
+                            <UniformGrid Columns="3" Margin="0,4,0,4">
+                                <StackPanel Spacing="6">
+                                    <c:LiquidFillGauge Value="{Binding CpuPercent}" />
+                                    <TextBlock Text="CPU Usage" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                                </StackPanel>
+                                <StackPanel Spacing="6">
+                                    <c:LiquidFillGauge Value="{Binding RamPercent}" />
+                                    <TextBlock Text="RAM Usage" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding RamText}" HorizontalAlignment="Center" Classes="label" />
+                                </StackPanel>
+                                <StackPanel Spacing="6">
+                                    <c:LiquidFillGauge Value="{Binding DiskPercent}" />
+                                    <TextBlock Text="Storage Used" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding DiskText}" HorizontalAlignment="Center" Classes="label" />
+                                </StackPanel>
+                            </UniformGrid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Logged in user -->
+                    <Border Classes="card">
+                        <StackPanel Spacing="4">
+                            <TextBlock Classes="cardTitle" Text="Logged In User" />
+                            <TextBlock Classes="value" Text="{Binding LoggedInUser}" />
+                            <StackPanel Orientation="Horizontal" Spacing="6"
+                                        IsVisible="{Binding LoggedInUserOu, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                <TextBlock Classes="label" Text="OU:" />
+                                <TextBlock Text="{Binding LoggedInUserOu}" FontSize="12" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Video cards -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="cardTitle" Text="Video Card" />
+                            <ItemsControl ItemsSource="{Binding VideoCards}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="m:VideoCardInfo">
+                                        <StackPanel Margin="4,2,4,8" Spacing="2">
+                                            <TextBlock Classes="value" Text="{Binding Name}" />
+                                            <TextBlock Classes="label" Text="{Binding Driver, StringFormat='Driver {0}'}" />
+                                            <TextBlock Classes="label" Text="{Binding Resolution}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Monitors -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="cardTitle" Text="Monitors" />
+                            <ItemsControl ItemsSource="{Binding Monitors}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="m:MonitorInfo">
+                                        <Grid ColumnDefinitions="*,Auto" Margin="4,3">
+                                            <TextBlock Classes="value" Text="{Binding Name}" />
+                                            <TextBlock Grid.Column="1" Classes="label" Text="{Binding Resolution}" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Device Manager -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="cardTitle" Text="Device Manager Errors" />
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="4" IsVisible="{Binding !HasDeviceErrors}">
+                                <Ellipse Width="10" Height="10" Fill="{StaticResource GreenBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="No device errors found" />
+                            </StackPanel>
+                            <ItemsControl ItemsSource="{Binding DeviceErrors}" IsVisible="{Binding HasDeviceErrors}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="m:DeviceError">
+                                        <Grid ColumnDefinitions="Auto,*" Margin="4,3">
+                                            <Ellipse Width="10" Height="10" Fill="{StaticResource RedBrush}" VerticalAlignment="Top" Margin="0,5,10,0" />
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Classes="value" Text="{Binding Name}" />
+                                                <TextBlock Classes="label" Text="{Binding Description}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Partial failures -->
+                    <Border Classes="card" IsVisible="{Binding Warnings, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <TextBlock Text="{Binding Warnings}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>
