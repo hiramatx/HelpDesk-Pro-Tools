@@ -20,6 +20,27 @@ public static class ActiveDirectoryService
         return FindOu($"(&(objectCategory=person)(objectClass=user)(sAMAccountName={Escape(samAccountName)}))");
     }
 
+    /// <summary>Comma-separated member names of a domain group, or null if the group isn't found.</summary>
+    public static string? GetGroupMembers(string groupName)
+    {
+        using var searcher = new DirectorySearcher(
+            $"(&(objectCategory=group)(|(cn={Escape(groupName)})(sAMAccountName={Escape(groupName)})))",
+            new[] { "member" })
+        {
+            ClientTimeout = TimeSpan.FromSeconds(10),
+        };
+        var result = searcher.FindOne();
+        if (result is null) return null;
+
+        var names = result.Properties["member"]
+            .Cast<object>()
+            .Select(dn => SplitDn(dn.ToString() ?? "")[0])
+            .Select(rdn => rdn[(rdn.IndexOf('=') + 1)..])
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return names.Count == 0 ? "(none)" : string.Join(", ", names);
+    }
+
     private static string FindOu(string filter)
     {
         using var searcher = new DirectorySearcher(filter, new[] { "distinguishedName" })

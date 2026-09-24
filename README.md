@@ -20,7 +20,7 @@ The main window opens as tall as the monitor's usable area (screen minus taskbar
 | **Remote PC** | Editable PC name box with saved history (last 30, stored in `%AppData%\HelpDeskProTools\settings.json`). **Get PC Details** (or Enter) opens the details window |
 | **Remote Tools** | SFC Scan, Remote PS, Cleanup Temp Folders, Download Log Files, Ping, C Share, Remote Assist, Remote Admin (RDP), Computer Management, Reboot (with confirmation), Send Message. Every tool checks that a valid PC name is entered first |
 | **Local Tools** | AD Users & Computers, Windows Terminal |
-| **Scripts** | Tabs (Testing, Tools, Fixes, GAD, Utilities, Installs) built from `scripts.json`; each entry becomes a button that opens the `.ps1` in `pwsh` |
+| **Scripts** | Tabs (Testing, Tools, Fixes, GAD, Utilities, Installs) built from `scripts.json`; each entry becomes a button that opens the `.ps1` in Windows PowerShell (`powershell.exe`) |
 
 ### How each remote tool runs
 
@@ -29,14 +29,23 @@ The main window opens as tall as the monitor's usable area (screen minus taskbar
 | SFC Scan | `Invoke-Command` → `DISM /RestoreHealth` + `sfc /scannow`, output streamed live into a pop-up (the only one using PowerShell because DISM and SFC have no managed API) |
 | Cleanup Temp Folders | C# over `\\PC\c$`: Windows Temp, each user's Temp, Recycle Bin, Edge and Chrome caches, with a freed-space report |
 | Download Log Files | C# `EventLogSession` exports System/Application/Setup `.evtx` on the PC, then copies them plus CBS, DISM, Panther and CCM logs to `Desktop\RemoteLogs\PC_timestamp` |
-| Ping PC | C# `Ping` + DNS lookup |
+| Ping PC | C# `Ping` + DNS lookup, continuous (like `ping -t`) with timestamps until **Stop**, then shows statistics |
 | Reboot PC | C# WMI `Win32_OperatingSystem.Win32Shutdown` (forced restart), then watches the PC go offline and come back |
 | Send Message | `msg.exe * /server:PC` |
 | Remote PS | `pwsh` → `Enter-PSSession` |
 | C Share | Explorer at `\\PC\c$` and `\\PC\c$\Users\<you without -admin>` |
 | Remote Assist / Remote Admin / Computer Mgmt | `msra /offerra`, `mstsc /admin`, `compmgmt.msc /computer:` |
 
-**PC Details** uses WMI (`System.Management`) and AD (`System.DirectoryServices`): PC and user OU, liquid-fill gauges for CPU / RAM / C: usage (green up to 50%, yellow 51-85%, red 86-100%), logged-in user (falls back to the owner of `explorer.exe` for RDP sessions), video cards, monitors (name and native resolution) and Device Manager errors.
+**PC Details** (WMI via `System.Management`, remote registry via WMI `StdRegProv`, the `c$` share and AD via `System.DirectoryServices`):
+
+| Section | Fields |
+|---|---|
+| Utilization | Liquid-fill gauges for CPU / RAM / C: (green up to 50%, yellow 51-85%, red 86-100%) |
+| PC | Name, model, OS with version and build (e.g. 25H2), serial, UAC/LUA, domain controller, IP, network speed, last boot, uptime, OU |
+| Users | Logged-in user (no domain) and OU, console or remote (RDP), members of local Administrators, Remote Desktop Users and "Direct Access Users" (local group, or the AD group if there is no local one) |
+| Hardware | Processor, total RAM, MAC, RAM sticks per slot, each video card, monitor (name, resolution) and fixed drive (total / used / free) |
+| Software | Edge, Chrome and Microsoft Office versions |
+| Device Manager | Devices with errors, if any |
 
 ## Requirements on the admin PC / targets
 

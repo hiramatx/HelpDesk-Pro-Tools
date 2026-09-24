@@ -7,13 +7,13 @@
         x:DataType="vm:PcDetailsViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="{Binding PcName, StringFormat='PC Details - {0}'}"
-        Width="760" Height="900" MinWidth="600" MinHeight="500"
+        Width="880" Height="1000" MinWidth="700" MinHeight="500"
         WindowStartupLocation="CenterOwner">
 
     <Window.Styles>
         <Style Selector="c|LiquidFillGauge">
-            <Setter Property="Width" Value="150" />
-            <Setter Property="Height" Value="150" />
+            <Setter Property="Width" Value="140" />
+            <Setter Property="Height" Value="140" />
             <Setter Property="HorizontalAlignment" Value="Center" />
             <Setter Property="TrackBrush" Value="{DynamicResource GaugeTrackBrush}" />
             <Setter Property="TextBrush" Value="{DynamicResource TextPrimaryBrush}" />
@@ -23,24 +23,50 @@
             <Setter Property="CriticalBrush" Value="{StaticResource RedBrush}" />
             <Setter Property="WarningLiquidTextBrush" Value="{StaticResource DarkTextBrush}" />
         </Style>
+
+        <Style Selector="SelectableTextBlock.fieldValue">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
     </Window.Styles>
+
+    <Window.Resources>
+        <!-- "Label: value" cell for the 2-column sections. Spacer cells keep their slot but show nothing. -->
+        <DataTemplate x:Key="FieldTemplate" x:DataType="m:InfoField">
+            <Grid ColumnDefinitions="Auto,*" Margin="4,4" IsVisible="{Binding !IsSpacer}">
+                <TextBlock Classes="label" Text="{Binding Label, StringFormat='{}{0}:'}"
+                           MinWidth="112" Margin="0,1,8,0" VerticalAlignment="Top" />
+                <SelectableTextBlock Grid.Column="1" Classes="fieldValue" Text="{Binding Value}" />
+            </Grid>
+        </DataTemplate>
+
+        <!-- Wider label column for the single-column Users section -->
+        <DataTemplate x:Key="WideFieldTemplate" x:DataType="m:InfoField">
+            <Grid ColumnDefinitions="Auto,*" Margin="4,4">
+                <TextBlock Classes="label" Text="{Binding Label, StringFormat='{}{0}:'}"
+                           MinWidth="150" Margin="0,1,8,0" VerticalAlignment="Top" />
+                <SelectableTextBlock Grid.Column="1" Classes="fieldValue" Text="{Binding Value}" />
+            </Grid>
+        </DataTemplate>
+
+        <!-- One row of a 2-column section: left and right cells share the width equally -->
+        <DataTemplate x:Key="RowTemplate" x:DataType="m:InfoRow">
+            <Grid ColumnDefinitions="*,*">
+                <ContentControl Content="{Binding Left}" ContentTemplate="{StaticResource FieldTemplate}" />
+                <ContentControl Grid.Column="1" Content="{Binding Right}" ContentTemplate="{StaticResource FieldTemplate}" />
+            </Grid>
+        </DataTemplate>
+    </Window.Resources>
 
     <Grid RowDefinitions="Auto,*" Margin="16">
 
-        <!-- PC name / OU header -->
+        <!-- Header -->
         <Border Classes="card" Margin="0,0,0,12">
             <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Spacing="3">
-                    <TextBlock Text="{Binding PcName}" FontSize="22" FontWeight="Bold" />
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <TextBlock Classes="label" Text="OU:" />
-                        <TextBlock Text="{Binding PcOu}" FontSize="12" TextWrapping="Wrap" />
-                    </StackPanel>
-                    <TextBlock Classes="label" IsVisible="{Binding HasData}">
-                        <Run Text="{Binding OperatingSystem}" />
-                        <Run Text="  •  " />
-                        <Run Text="{Binding Uptime}" />
-                    </TextBlock>
+                <StackPanel Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="PC Details" FontSize="22" FontWeight="Bold" />
+                    <TextBlock Text="{Binding PcName}" Classes="muted" FontSize="12" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                     <ProgressBar IsIndeterminate="True" Width="90" IsVisible="{Binding IsLoading}" />
@@ -63,11 +89,11 @@
 
                 <StackPanel Spacing="12" IsVisible="{Binding HasData}">
 
-                    <!-- Gauges -->
+                    <!-- Utilization -->
                     <Border Classes="card">
                         <StackPanel>
                             <TextBlock Classes="cardTitle" Text="Utilization" />
-                            <UniformGrid Columns="3" Margin="0,4,0,4">
+                            <UniformGrid Columns="3" Margin="0,2">
                                 <StackPanel Spacing="6">
                                     <c:LiquidFillGauge Value="{Binding CpuPercent}" />
                                     <TextBlock Text="CPU Usage" HorizontalAlignment="Center" FontWeight="SemiBold" />
@@ -86,51 +112,39 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Logged in user -->
+                    <!-- PC -->
                     <Border Classes="card">
-                        <StackPanel Spacing="4">
-                            <TextBlock Classes="cardTitle" Text="Logged In User" />
-                            <TextBlock Classes="value" Text="{Binding LoggedInUser}" />
-                            <StackPanel Orientation="Horizontal" Spacing="6"
-                                        IsVisible="{Binding LoggedInUserOu, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                <TextBlock Classes="label" Text="OU:" />
-                                <TextBlock Text="{Binding LoggedInUserOu}" FontSize="12" TextWrapping="Wrap" />
-                            </StackPanel>
+                        <StackPanel>
+                            <TextBlock Classes="cardTitle" Text="PC" />
+                            <ItemsControl ItemsSource="{Binding PcRows}"
+                                          ItemTemplate="{StaticResource RowTemplate}" />
                         </StackPanel>
                     </Border>
 
-                    <!-- Video cards -->
+                    <!-- Users -->
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="cardTitle" Text="Video Card" />
-                            <ItemsControl ItemsSource="{Binding VideoCards}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="m:VideoCardInfo">
-                                        <StackPanel Margin="4,2,4,8" Spacing="2">
-                                            <TextBlock Classes="value" Text="{Binding Name}" />
-                                            <TextBlock Classes="label" Text="{Binding Driver, StringFormat='Driver {0}'}" />
-                                            <TextBlock Classes="label" Text="{Binding Resolution}" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            <TextBlock Classes="cardTitle" Text="Users" />
+                            <ItemsControl ItemsSource="{Binding UserFields}"
+                                          ItemTemplate="{StaticResource WideFieldTemplate}" />
                         </StackPanel>
                     </Border>
 
-                    <!-- Monitors -->
+                    <!-- Hardware -->
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="cardTitle" Text="Monitors" />
-                            <ItemsControl ItemsSource="{Binding Monitors}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="m:MonitorInfo">
-                                        <Grid ColumnDefinitions="*,Auto" Margin="4,3">
-                                            <TextBlock Classes="value" Text="{Binding Name}" />
-                                            <TextBlock Grid.Column="1" Classes="label" Text="{Binding Resolution}" VerticalAlignment="Center" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            <TextBlock Classes="cardTitle" Text="Hardware" />
+                            <ItemsControl ItemsSource="{Binding HardwareRows}"
+                                          ItemTemplate="{StaticResource RowTemplate}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Software -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="cardTitle" Text="Software" />
+                            <ItemsControl ItemsSource="{Binding SoftwareRows}"
+                                          ItemTemplate="{StaticResource RowTemplate}" />
                         </StackPanel>
                     </Border>
 
@@ -148,7 +162,7 @@
                                         <Grid ColumnDefinitions="Auto,*" Margin="4,3">
                                             <Ellipse Width="10" Height="10" Fill="{StaticResource RedBrush}" VerticalAlignment="Top" Margin="0,5,10,0" />
                                             <StackPanel Grid.Column="1">
-                                                <TextBlock Classes="value" Text="{Binding Name}" />
+                                                <SelectableTextBlock Classes="fieldValue" Text="{Binding Name}" />
                                                 <TextBlock Classes="label" Text="{Binding Description}" />
                                             </StackPanel>
                                         </Grid>
@@ -160,7 +174,7 @@
 
                     <!-- Partial failures -->
                     <Border Classes="card" IsVisible="{Binding Warnings, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                        <TextBlock Text="{Binding Warnings}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
+                        <SelectableTextBlock Text="{Binding Warnings}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap" />
                     </Border>
                 </StackPanel>
             </StackPanel>
