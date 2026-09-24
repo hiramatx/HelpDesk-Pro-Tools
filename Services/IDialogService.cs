@@ -8,7 +8,7 @@ namespace HelpDesk_Pro_Tools.Services;
 public interface IDialogService
 {
     /// <summary>Opens a live output window and runs <paramref name="work"/>, streaming its log lines into it.</summary>
-    void ShowOutput(string title, Func<Action<string>, CancellationToken, Task> work);
+    void ShowOutput(string title, Func<Action<string>, CancellationToken, Task> work, string cancelText = "Cancel");
 
     void ShowPcDetails(string pc);
 

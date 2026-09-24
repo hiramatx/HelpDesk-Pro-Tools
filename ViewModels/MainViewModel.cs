@@ -164,7 +164,7 @@ public partial class MainViewModel : ViewModelBase
     private void Ping()
     {
         if (TryGetPc(out var pc))
-            _dialogs.ShowOutput($"Ping - {pc}", (log, ct) => RemoteOperations.PingAsync(pc, log, ct));
+            _dialogs.ShowOutput($"Ping - {pc}", (log, ct) => RemoteOperations.PingAsync(pc, log, ct), cancelText: "Stop");
     }
 
     [RelayCommand]

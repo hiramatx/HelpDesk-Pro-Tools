@@ -14,9 +14,9 @@ public class DialogService : IDialogService
     private static Window? Owner =>
         (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
 
-    public void ShowOutput(string title, Func<Action<string>, CancellationToken, Task> work)
+    public void ShowOutput(string title, Func<Action<string>, CancellationToken, Task> work, string cancelText = "Cancel")
     {
-        var vm = new OutputViewModel(title, work);
+        var vm = new OutputViewModel(title, work, cancelText);
         var window = new OutputWindow { DataContext = vm };
         Show(window);
         _ = vm.RunAsync();

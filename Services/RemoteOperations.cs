@@ -262,42 +262,58 @@ public static class RemoteOperations
             log($"DNS lookup failed: {ex.Message}");
         }
 
+        log("Pinging continuously (like ping -t). Press Stop to end and show statistics.");
         log("");
+
         using var ping = new Ping();
         int sent = 0, received = 0;
-        var times = new List<long>();
+        long min = long.MaxValue, max = 0, total = 0; // running stats, so memory stays flat however long it runs
+        var lastReplyOk = false;
 
-        for (var i = 0; i < 4; i++)
+        // Stopping is the normal way to end a continuous ping, so cancellation
+        // finishes with statistics instead of being reported as an error.
+        try
         {
-            ct.ThrowIfCancellationRequested();
-            sent++;
-            try
+            while (true)
             {
-                var reply = await ping.SendPingAsync(pc, TimeSpan.FromSeconds(2), cancellationToken: ct);
-                if (reply.Status == IPStatus.Success)
+                ct.ThrowIfCancellationRequested();
+                sent++;
+                lastReplyOk = false;
+                try
                 {
-                    received++;
-                    times.Add(reply.RoundtripTime);
-                    log($"Reply from {reply.Address}: time={reply.RoundtripTime}ms{(reply.Options is { } o ? $" TTL={o.Ttl}" : "")}");
+                    var reply = await ping.SendPingAsync(pc, TimeSpan.FromSeconds(2), cancellationToken: ct);
+                    if (reply.Status == IPStatus.Success)
+                    {
+                        received++;
+                        lastReplyOk = true;
+                        min = Math.Min(min, reply.RoundtripTime);
+                        max = Math.Max(max, reply.RoundtripTime);
+                        total += reply.RoundtripTime;
+                        log($"[{DateTime.Now:HH:mm:ss}] Reply from {reply.Address}: time={reply.RoundtripTime}ms{(reply.Options is { } o ? $" TTL={o.Ttl}" : "")}");
+                    }
+                    else
+                    {
+                        log($"[{DateTime.Now:HH:mm:ss}] Request failed: {reply.Status}");
+                    }
                 }
-                else
+                catch (PingException ex)
                 {
-                    log($"Request failed: {reply.Status}");
+                    log($"[{DateTime.Now:HH:mm:ss}] Ping failed: {ex.InnerException?.Message ?? ex.Message}");
                 }
-            }
-            catch (PingException ex)
-            {
-                log($"Ping failed: {ex.InnerException?.Message ?? ex.Message}");
-            }
 
-            if (i < 3) await Task.Delay(1000, ct);
+                await Task.Delay(1000, ct);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Stopped by the user - fall through to the summary.
         }
 
         log("");
-        log($"Packets: Sent = {sent}, Received = {received}, Lost = {sent - received} ({(sent - received) * 100 / sent}% loss)");
-        if (times.Count > 0)
-            log($"Round trip: Min = {times.Min()}ms, Max = {times.Max()}ms, Avg = {(long)times.Average()}ms");
-        log(received > 0 ? $"{pc} is ONLINE" : $"{pc} is OFFLINE / not responding");
+        log($"Packets: Sent = {sent}, Received = {received}, Lost = {sent - received} ({(sent == 0 ? 0 : (sent - received) * 100 / sent)}% loss)");
+        if (received > 0)
+            log($"Round trip: Min = {min}ms, Max = {max}ms, Avg = {total / received}ms");
+        log(lastReplyOk ? $"{pc} is ONLINE" : $"{pc} is OFFLINE / not responding (last ping)");
     }
 
     // ---------------------------------------------------------------- Reboot

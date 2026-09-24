@@ -16,13 +16,21 @@ public partial class OutputViewModel : ViewModelBase
     private readonly CancellationTokenSource _cts = new();
     private readonly StringBuilder _log = new();
 
-    public OutputViewModel(string title, Func<Action<string>, CancellationToken, Task> work)
+    // Long-running jobs (continuous ping) keep only the most recent output.
+    private const int MaxLogChars = 400_000;
+    private const int TrimLogChars = 100_000;
+
+    public OutputViewModel(string title, Func<Action<string>, CancellationToken, Task> work, string cancelText = "Cancel")
     {
         Title = title;
         _work = work;
+        CancelText = cancelText;
     }
 
     public string Title { get; }
+
+    /// <summary>Label for the cancel button ("Stop" for jobs that run until stopped).</summary>
+    public string CancelText { get; }
 
     [ObservableProperty]
     public partial string LogText { get; set; } = "";
@@ -76,6 +84,12 @@ public partial class OutputViewModel : ViewModelBase
     private void Append(string line)
     {
         _log.AppendLine(line);
+        if (_log.Length > MaxLogChars)
+        {
+            // Drop the oldest text, cutting at a line break.
+            var cut = _log.ToString(TrimLogChars, _log.Length - TrimLogChars).IndexOf('\n');
+            _log.Remove(0, TrimLogChars + cut + 1);
+        }
         LogText = _log.ToString();
     }
 

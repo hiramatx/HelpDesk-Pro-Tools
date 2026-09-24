@@ -30,9 +30,11 @@ public static class ProcessLauncher
         }
     }
 
+    /// <summary>Runs a Scripts-tab .ps1 in Windows PowerShell 5.1 (powershell.exe), in its own console.</summary>
     public static void LaunchScript(string scriptPath, string? extraArgs)
     {
-        LaunchPowerShell($"-NoExit -NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\" {extraArgs}".TrimEnd());
+        var powershell = Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe");
+        Launch(powershell, $"-NoExit -NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\" {extraArgs}".TrimEnd());
     }
 
     /// <summary>Opens an MMC snap-in, optionally targeted at a remote computer.</summary>
