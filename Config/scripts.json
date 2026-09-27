@@ -1,9 +1,9 @@
 // Script buttons for the Scripts card. One array per tab.
 //   name        - button text
-//   path        - .ps1 file; absolute, UNC, or relative to this file's folder
+//   path        - .ps1 file; absolute, UNC, or relative to the folder containing HelpDeskProTools.exe
 //   arguments   - optional; {PC} is replaced with the Remote PC name (and makes the PC name required)
 //   description - optional tooltip
-// Edit this file (next to HelpDeskProTools.exe) and press "Reload" in the app.
+// Edit this file (Config\scripts.json next to HelpDeskProTools.exe) and press "Reload" in the app.
 {
   "Testing": [
     {

@@ -1,0 +1,12 @@
+// Minimum versions for the Software card in PC Details.
+// Key = the software "name" from software.json (not case-sensitive), value = minimum version.
+//   Installed version at or above the minimum -> green
+//   Installed version below the minimum       -> red (outdated)
+//   Version can't be compared                 -> orange (hover for the reason)
+//   Program not listed here                   -> normal text (no check)
+// Versions are compared number by number, so 4.10.2 is newer than 4.9.8.
+{
+  "Chrome": "150.0.0.0",
+  "MS Edge": "150.0.0.0",
+  "MS Office": "16.0.19000.0"
+}

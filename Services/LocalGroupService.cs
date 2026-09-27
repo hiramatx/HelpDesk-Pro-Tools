@@ -12,8 +12,8 @@ public static class LocalGroupService
     // NERR_GroupNotFound
     private const int GroupNotFound = unchecked((int)0x800708AC);
 
-    /// <summary>Comma-separated member list, or null if the group doesn't exist on the PC.</summary>
-    public static string? GetMembers(string pc, string group, string? computerName = null)
+    /// <summary>Member names (sorted), or null if the group doesn't exist on the PC.</summary>
+    public static List<string>? GetMembers(string pc, string group, string? computerName = null)
     {
         using var entry = new DirectoryEntry($"WinNT://{pc}/{group},group");
         try
@@ -33,7 +33,7 @@ public static class LocalGroupService
         }
 
         names.Sort(StringComparer.OrdinalIgnoreCase);
-        return names.Count == 0 ? "(none)" : string.Join(", ", names);
+        return names;
     }
 
     // WinNT://DOMAIN/PC/name -> local account "name"

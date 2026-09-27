@@ -29,6 +29,17 @@
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
+
+        <!-- Software versions vs baselines.json: green = up to date, red = outdated / missing, orange = couldn't check -->
+        <Style Selector="SelectableTextBlock.fieldValue.ok">
+            <Setter Property="Foreground" Value="{StaticResource GreenBrush}" />
+        </Style>
+        <Style Selector="SelectableTextBlock.fieldValue.bad">
+            <Setter Property="Foreground" Value="{StaticResource RedBrush}" />
+        </Style>
+        <Style Selector="SelectableTextBlock.fieldValue.warn">
+            <Setter Property="Foreground" Value="{StaticResource StandardIndicatorBrush}" />
+        </Style>
     </Window.Styles>
 
     <Window.Resources>
@@ -37,7 +48,9 @@
             <Grid ColumnDefinitions="Auto,*" Margin="4,4" IsVisible="{Binding !IsSpacer}">
                 <TextBlock Classes="label" Text="{Binding Label, StringFormat='{}{0}:'}"
                            MinWidth="112" Margin="0,1,8,0" VerticalAlignment="Top" />
-                <SelectableTextBlock Grid.Column="1" Classes="fieldValue" Text="{Binding Value}" />
+                <SelectableTextBlock Grid.Column="1" Classes="fieldValue" Text="{Binding Value}"
+                                     Classes.ok="{Binding IsOk}" Classes.bad="{Binding IsBad}" Classes.warn="{Binding IsWarn}"
+                                     ToolTip.Tip="{Binding ToolTip}" />
             </Grid>
         </DataTemplate>
 

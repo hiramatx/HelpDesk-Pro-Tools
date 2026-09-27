@@ -1,5 +1,6 @@
 using System;
 using System.DirectoryServices;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
@@ -20,8 +21,8 @@ public static class ActiveDirectoryService
         return FindOu($"(&(objectCategory=person)(objectClass=user)(sAMAccountName={Escape(samAccountName)}))");
     }
 
-    /// <summary>Comma-separated member names of a domain group, or null if the group isn't found.</summary>
-    public static string? GetGroupMembers(string groupName)
+    /// <summary>Member names of a domain group (sorted), or null if the group isn't found.</summary>
+    public static List<string>? GetGroupMembers(string groupName)
     {
         using var searcher = new DirectorySearcher(
             $"(&(objectCategory=group)(|(cn={Escape(groupName)})(sAMAccountName={Escape(groupName)})))",
@@ -38,7 +39,7 @@ public static class ActiveDirectoryService
             .Select(rdn => rdn[(rdn.IndexOf('=') + 1)..])
             .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        return names.Count == 0 ? "(none)" : string.Join(", ", names);
+        return names;
     }
 
     private static string FindOu(string filter)

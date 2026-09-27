@@ -43,10 +43,8 @@ public class PcDetails
     public List<MonitorInfo> Monitors { get; } = new();
     public List<DriveSpace> Drives { get; } = new();
 
-    // ---- Software
-    public string EdgeVersion { get; set; } = "";
-    public string ChromeVersion { get; set; } = "";
-    public string OfficeVersion { get; set; } = "";
+    // ---- Software (from Config\software.json)
+    public List<SoftwareResult> Software { get; } = new();
 
     public List<DeviceError> DeviceErrors { get; } = new();
 
@@ -60,10 +58,22 @@ public record DriveSpace(string Letter, double TotalGb, double UsedGb, double Fr
 
 public record DeviceError(string Name, int Code, string Description);
 
+/// <summary>How a value is coloured: Ok = green, Bad = red, Warn = orange, Normal = default text.</summary>
+public enum FieldStatus { Normal, Ok, Bad, Warn }
+
+/// <summary>One software line: display name, what to show, its colour and an optional hover explanation.</summary>
+public record SoftwareResult(string Name, string Value, FieldStatus Status, string? ToolTip);
+
 /// <summary>One "Label: value" cell in a PC Details section. An empty label is a spacer that keeps rows aligned.</summary>
 public record InfoField(string Label, string Value)
 {
+    public FieldStatus Status { get; init; }
+    public string? ToolTip { get; init; }
+
     public bool IsSpacer => Label.Length == 0;
+    public bool IsOk => Status == FieldStatus.Ok;
+    public bool IsBad => Status == FieldStatus.Bad;
+    public bool IsWarn => Status == FieldStatus.Warn;
 
     public static InfoField Spacer { get; } = new("", "");
 }

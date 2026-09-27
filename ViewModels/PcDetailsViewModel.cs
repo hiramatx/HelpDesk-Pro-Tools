@@ -131,12 +131,21 @@ public partial class PcDetailsViewModel : ViewModelBase
         return fields;
     }
 
+    /// <summary>One field per entry in Config\software.json, coloured by baselines.json.</summary>
     private static IEnumerable<InfoField> BuildSoftware(PcDetails d)
     {
-        yield return new("MS Edge Version", d.EdgeVersion);
-        yield return new("Chrome Version", d.ChromeVersion);
-        yield return new("MS Office Version", d.OfficeVersion);
-        yield return InfoField.Spacer;
+        if (d.Software.Count == 0)
+        {
+            yield return new InfoField("Software", "None configured - add programs to Config\\software.json");
+            yield break;
+        }
+
+        foreach (var s in d.Software)
+        {
+            // "Chrome" -> "Chrome Version"; the error entry for software.json keeps its file name as the label.
+            var label = s.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? s.Name : $"{s.Name} Version";
+            yield return new InfoField(label, s.Value) { Status = s.Status, ToolTip = s.ToolTip };
+        }
     }
 
     /// <summary>"Video Card 1", "Video Card 2"... always filling whole rows.</summary>

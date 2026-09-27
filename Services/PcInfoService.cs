@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Management;
 using System.Threading.Tasks;
@@ -259,12 +257,32 @@ public static class PcInfoService
 
     private static void ReadGroups(string pc, PcDetails d)
     {
-        d.LocalAdmins = SafeGroup(() => LocalGroupService.GetMembers(pc, "Administrators", d.ComputerName) ?? "Group not found");
-        d.RemoteDesktopUsers = SafeGroup(() => LocalGroupService.GetMembers(pc, "Remote Desktop Users", d.ComputerName) ?? "Group not found");
+        UserExclusions exclusions;
+        try
+        {
+            exclusions = UserExclusions.Load();
+        }
+        catch (Exception ex)
+        {
+            d.Warnings.Add($"{ex.Message} (nothing was excluded)");
+            exclusions = UserExclusions.None;
+        }
+
+        d.LocalAdmins = SafeGroup(() =>
+            Join(LocalGroupService.GetMembers(pc, "Administrators", d.ComputerName), exclusions.FilterLocalAdmins));
+        d.RemoteDesktopUsers = SafeGroup(() =>
+            Join(LocalGroupService.GetMembers(pc, "Remote Desktop Users", d.ComputerName), exclusions.FilterRemoteDesktopUsers));
         d.DirectAccessUsers = SafeGroup(() =>
-            LocalGroupService.GetMembers(pc, DirectAccessGroupName, d.ComputerName)
-            ?? ActiveDirectoryService.GetGroupMembers(DirectAccessGroupName)
-            ?? "Group not found");
+            Join(LocalGroupService.GetMembers(pc, DirectAccessGroupName, d.ComputerName)
+                 ?? ActiveDirectoryService.GetGroupMembers(DirectAccessGroupName), exclusions.FilterDirectAccessUsers));
+    }
+
+    /// <summary>Applies exclusions and formats the members as a comma-separated list.</summary>
+    private static string Join(List<string>? members, Func<IEnumerable<string>, IEnumerable<string>> filter)
+    {
+        if (members is null) return "Group not found";
+        var shown = filter(members).ToList();
+        return shown.Count == 0 ? "(none)" : string.Join(", ", shown);
     }
 
     private static string SafeGroup(Func<string> read)
@@ -277,71 +295,15 @@ public static class PcInfoService
 
     private static void ReadSoftware(string pc, RemoteRegistry? registry, PcDetails d)
     {
-        var share = $@"\\{pc}\c$";
-
-        d.EdgeVersion = FileVersion(share, @"Program Files (x86)\Microsoft\Edge\Application\msedge.exe", @"Program Files\Microsoft\Edge\Application\msedge.exe")
-                        ?? registry?.GetString(@"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062}", "pv")
-                        ?? "Not installed";
-
-        d.ChromeVersion = FileVersion(share, @"Program Files\Google\Chrome\Application\chrome.exe", @"Program Files (x86)\Google\Chrome\Application\chrome.exe")
-                          ?? registry?.GetString(@"SOFTWARE\WOW6432Node\Google\Update\Clients\{8A69D345-D564-463c-AFF1-A69D9E530F96}", "pv")
-                          ?? "Not installed";
-
-        d.OfficeVersion = registry is null ? "Unknown" : ReadOffice(registry);
-    }
-
-    private static string? FileVersion(string share, params string[] relativePaths)
-    {
-        foreach (var rel in relativePaths)
+        try
         {
-            var path = Path.Combine(share, rel);
-            if (File.Exists(path)) return FileVersionInfo.GetVersionInfo(path).ProductVersion;
+            d.Software.AddRange(SoftwareInventoryService.Read(pc, registry));
         }
-        return null;
-    }
-
-    private static string ReadOffice(RemoteRegistry registry)
-    {
-        // Click-to-Run (Microsoft 365 Apps, Office 2019/2021/2024)
-        const string c2r = @"SOFTWARE\Microsoft\Office\ClickToRun\Configuration";
-        var version = registry.GetString(c2r, "VersionToReport");
-        if (version is not null)
+        catch (Exception ex)
         {
-            var products = (registry.GetString(c2r, "ProductReleaseIds") ?? "")
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(FriendlyOfficeProduct);
-            var channel = OfficeChannel(registry.GetString(c2r, "UpdateChannel") ?? registry.GetString(c2r, "CDNBaseUrl"));
-            return $"{string.Join(" + ", products)} {version}{(channel is null ? "" : $" ({channel})")}".Trim();
+            // Missing or invalid software.json: show the problem in the Software card itself.
+            d.Software.Add(new SoftwareResult(SoftwareInventoryService.CatalogFile, "Could not load", FieldStatus.Warn, ex.Message));
         }
-
-        // MSI installs
-        foreach (var (key, name) in new[] { ("16.0", "Office 2016"), ("15.0", "Office 2013"), ("14.0", "Office 2010") })
-        {
-            if (registry.GetString($@"SOFTWARE\Microsoft\Office\{key}\Common\InstallRoot", "Path") is not null ||
-                registry.GetString($@"SOFTWARE\WOW6432Node\Microsoft\Office\{key}\Common\InstallRoot", "Path") is not null)
-                return $"{name} (MSI, {key})";
-        }
-
-        return "Not installed";
-    }
-
-    private static string FriendlyOfficeProduct(string id) => id switch
-    {
-        "O365ProPlusRetail" or "O365ProPlusEEANoTeamsRetail" => "Microsoft 365 Apps for enterprise",
-        "O365BusinessRetail" or "O365BusinessEEANoTeamsRetail" => "Microsoft 365 Apps for business",
-        "ProPlus2024Volume" => "Office LTSC Professional Plus 2024",
-        "ProPlus2021Volume" => "Office LTSC Professional Plus 2021",
-        "ProPlus2019Volume" => "Office Professional Plus 2019",
-        _ => id,
-    };
-
-    private static string? OfficeChannel(string? url)
-    {
-        if (url is null) return null;
-        if (url.Contains("492350f6-3a01-4f97-b9c0-c7c6ddf67d60", StringComparison.OrdinalIgnoreCase)) return "Current Channel";
-        if (url.Contains("55336b82-a18d-4dd6-b5f6-9e5095c314a6", StringComparison.OrdinalIgnoreCase)) return "Monthly Enterprise Channel";
-        if (url.Contains("7ffbc6bf-bc32-4f92-8982-f9dd17fd3114", StringComparison.OrdinalIgnoreCase)) return "Semi-Annual Enterprise Channel";
-        return null;
     }
 
     // ------------------------------------------------------------------ helpers

@@ -1,0 +1,52 @@
+// Software shown in the Software card of the PC Details window, in this order (2 per row).
+// Each program is checked in this order: builtIn -> files -> registry -> content -> uninstall.
+// The first source that finds a version wins; otherwise it shows "Not installed".
+//
+//   name       - label shown in the window ("Version" is added automatically).
+//                Also the key used to look up its minimum version in baselines.json.
+//   files      - exe/dll paths on the remote PC (C:\... is read through \\PC\c$); shows the file's version.
+//   registry   - { "key": "SOFTWARE\\...", "value": "ValueName" } under HKLM; shows that value.
+//   content    - { "path": "C:\\...\\version.txt", "pattern": "Version=([0-9.]+)" }
+//                Reads the file and shows the text captured by ( ) in the pattern (a regular expression).
+//   uninstall  - start of the name shown in Programs & Features (not case-sensitive); shows that entry's version.
+//   builtIn    - special handlers that need custom code. Only "Office" is available.
+//   required   - true = show "Not installed" in red. Otherwise it shows in normal text.
+//
+// JSON needs every backslash written twice (\\), including inside patterns.
+// Edit this file (Config\software.json next to HelpDeskProTools.exe); changes apply the next time PC Details is opened or refreshed.
+{
+  "software": [
+    {
+      "name": "MS Edge",
+      "files": [
+        "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+        "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe"
+      ],
+      "registry": {
+        "key": "SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062}",
+        "value": "pv"
+      }
+    },
+    {
+      "name": "Chrome",
+      "files": [
+        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
+      ],
+      "registry": {
+        "key": "SOFTWARE\\WOW6432Node\\Google\\Update\\Clients\\{8A69D345-D564-463c-AFF1-A69D9E530F96}",
+        "value": "pv"
+      }
+    },
+    {
+      "name": "MS Office",
+      "builtIn": "Office"
+    }
+
+    // More examples - remove the // to use them:
+    // ,{ "name": "Adobe Reader", "files": [ "C:\\Program Files\\Adobe\\Acrobat DC\\Acrobat\\Acrobat.exe" ] }
+    // ,{ "name": "Zoom", "uninstall": "Zoom Workplace" }
+    // ,{ "name": "Vendor Agent", "required": true,
+    //    "content": { "path": "C:\\ProgramData\\Vendor\\Agent\\version.txt", "pattern": "Version\\s*=\\s*([0-9.]+)" } }
+  ]
+}

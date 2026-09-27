@@ -1,0 +1,20 @@
+// Members to hide from the group lists in the Users card of PC Details.
+//   allGroups          - hidden from every list below
+//   localAdmins        - Local Admin Members (local Administrators group)
+//   remoteDesktopUsers - Remote Desktop Users (local group)
+//   directAccessUsers  - Direct Access Users
+//
+// Match the name as it appears in the list. Not case-sensitive.
+//   "CORP\\Domain Admins" matches exactly; "Domain Admins" also matches CORP\Domain Admins.
+//   * is a wildcard: "svc_*" hides every name starting with svc_, "S-1-5-21-*" hides orphaned SIDs.
+// JSON needs the backslash written twice (\\).
+//
+// Example:
+//   "allGroups":   [ "Domain Admins", "S-1-5-21-*" ],
+//   "localAdmins": [ "Administrator", "CORP\\Workstation Admins" ],
+{
+  "allGroups": [],
+  "localAdmins": [],
+  "remoteDesktopUsers": [],
+  "directAccessUsers": []
+}

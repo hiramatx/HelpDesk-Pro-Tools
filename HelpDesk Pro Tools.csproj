@@ -16,8 +16,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Script catalog is copied next to the exe so it can be edited without rebuilding -->
-    <None Update="scripts.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Config files are copied to Config\ next to the exe so they can be edited without rebuilding -->
+    <None Update="Config\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Scripts\**\*.ps1" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
