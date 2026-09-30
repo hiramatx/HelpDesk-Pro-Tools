@@ -7,8 +7,7 @@ Avalonia UI 12 · .NET 10 · MVVM (CommunityToolkit.Mvvm) · Designed by Hiram M
 
 **[Download the latest release](https://github.com/hiramatx/HelpDesk-Pro-Tools/releases/latest)** (Windows x64 zip)
 
-1. Install the [.NET 10 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/10.0) if it isn't already installed.
-2. Extract the zip and run `HelpDeskProTools.exe`, ideally as your `-admin` account.
+Extract the zip and run `HelpDeskProTools.exe`, ideally as your `-admin` account. The release is self-contained (.NET is included), so nothing needs to be installed, and it can run straight from a file share.
 
 ## Features
 
