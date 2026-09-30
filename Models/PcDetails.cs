@@ -61,8 +61,8 @@ public record DeviceError(string Name, int Code, string Description);
 /// <summary>How a value is coloured: Ok = green, Bad = red, Warn = orange, Normal = default text.</summary>
 public enum FieldStatus { Normal, Ok, Bad, Warn }
 
-/// <summary>One software line: display name, what to show, its colour and an optional hover explanation.</summary>
-public record SoftwareResult(string Name, string Value, FieldStatus Status, string? ToolTip);
+/// <summary>One software line: the label shown, what to show, its colour and an optional hover explanation.</summary>
+public record SoftwareResult(string Label, string Value, FieldStatus Status, string? ToolTip);
 
 /// <summary>One "Label: value" cell in a PC Details section. An empty label is a spacer that keeps rows aligned.</summary>
 public record InfoField(string Label, string Value)

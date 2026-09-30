@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Management;
 using System.Text;
 using System.Text.RegularExpressions;
 using HelpDesk_Pro_Tools.Models;
@@ -45,25 +46,54 @@ public static class SoftwareInventoryService
         }
 
         var uninstall = new Lazy<List<(string Name, string Key)>>(() => ReadUninstallNames(registry));
+        var cimv2 = new Lazy<ManagementScope>(() => WmiHelper.Connect(pc));
         var results = new List<SoftwareResult>();
 
         foreach (var entry in catalog.Software.Where(e => !string.IsNullOrWhiteSpace(e.Name)))
         {
             var name = entry.Name.Trim();
+            var label = string.IsNullOrWhiteSpace(entry.Label) ? $"{name} Version" : entry.Label.Trim();
             SoftwareResult result;
             try
             {
-                var found = Find(pc, registry, entry, uninstall);
-                result = Evaluate(name, entry, found, baselines, baselineError);
+                result = string.IsNullOrWhiteSpace(entry.Process)
+                    ? Evaluate(name, entry, Find(pc, registry, entry, uninstall), baselines, baselineError)
+                    : ReadProcess(name, entry.Process.Trim(), cimv2.Value);
             }
             catch (Exception ex)
             {
                 result = new SoftwareResult(name, "Could not read", FieldStatus.Warn, ex.Message);
             }
-            results.Add(result);
+            results.Add(result with { Label = label });
         }
 
         return results;
+    }
+
+    // ------------------------------------------------------------------ process check
+
+    /// <summary>"Running / user1, user2" (green) if the process is running, otherwise "NA / NA" (red).</summary>
+    private static SoftwareResult ReadProcess(string name, string processName, ManagementScope cimv2)
+    {
+        var wqlName = processName.Replace("\\", "\\\\").Replace("'", "\\'");
+        var users = new List<string>();
+        var count = 0;
+
+        foreach (var proc in WmiHelper.Query(cimv2, $"SELECT Handle FROM Win32_Process WHERE Name = '{wqlName}'").Cast<ManagementObject>())
+        {
+            count++;
+            var args = new object[2];
+            if (Convert.ToInt32(proc.InvokeMethod("GetOwner", args)) == 0 && args[0] is string owner && owner.Length > 0)
+                users.Add(owner); // user name without the domain, like the Users card
+        }
+
+        if (count == 0)
+            return new SoftwareResult(name, "NA / NA", FieldStatus.Bad, $"{processName} is not running");
+
+        var who = users.Count > 0
+            ? string.Join(", ", users.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(u => u, StringComparer.OrdinalIgnoreCase))
+            : "Unknown";
+        return new SoftwareResult(name, $"Running / {who}", FieldStatus.Ok, $"{processName}: {count} instance(s) running");
     }
 
     // ------------------------------------------------------------------ finding a version

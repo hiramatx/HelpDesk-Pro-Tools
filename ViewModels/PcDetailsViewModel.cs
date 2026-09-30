@@ -141,11 +141,7 @@ public partial class PcDetailsViewModel : ViewModelBase
         }
 
         foreach (var s in d.Software)
-        {
-            // "Chrome" -> "Chrome Version"; the error entry for software.json keeps its file name as the label.
-            var label = s.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? s.Name : $"{s.Name} Version";
-            yield return new InfoField(label, s.Value) { Status = s.Status, ToolTip = s.ToolTip };
-        }
+            yield return new InfoField(s.Label, s.Value) { Status = s.Status, ToolTip = s.ToolTip };
     }
 
     /// <summary>"Video Card 1", "Video Card 2"... always filling whole rows.</summary>

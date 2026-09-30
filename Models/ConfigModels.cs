@@ -11,6 +11,13 @@ public class SoftwareCatalog
 public class SoftwareEntry
 {
     public string Name { get; set; } = "";
+
+    /// <summary>Optional label shown instead of "{Name} Version".</summary>
+    public string? Label { get; set; }
+
+    /// <summary>Process to look for (e.g. "nschill.exe"): shows "Running / user" or "NA / NA".</summary>
+    public string? Process { get; set; }
+
     public List<string>? Files { get; set; }
     public RegistryValueRef? Registry { get; set; }
     public FileContentRef? Content { get; set; }

@@ -99,6 +99,14 @@ Each program is checked in this order, and the first source that finds a version
 
 `"required": true` shows "Not installed" in red instead of normal text.
 
+Two more options:
+- `"label"` shows that text exactly, instead of "<name> Version".
+- `"process": "nschill.exe"` checks for a running process instead of a version. If it's running, it shows **Running / user** in green (several users are comma-separated). If not, it shows **NA / NA** in red.
+
+```jsonc
+{ "name": "NSCHILL", "label": "NSCHILL status/user", "process": "nschill.exe" }
+```
+
 ```jsonc
 { "software": [
   { "name": "Chrome", "files": [ "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" ] },

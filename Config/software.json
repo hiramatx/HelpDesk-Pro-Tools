@@ -4,6 +4,10 @@
 //
 //   name       - label shown in the window ("Version" is added automatically).
 //                Also the key used to look up its minimum version in baselines.json.
+//   label      - optional; shown exactly as written instead of "<name> Version".
+//   process    - checks whether a process is running instead of finding a version, e.g. "nschill.exe".
+//                Running = "Running / <users running it>" in green; not running = "NA / NA" in red.
+//                baselines.json and the version sources below don't apply to process entries.
 //   files      - exe/dll paths on the remote PC (C:\... is read through \\PC\c$); shows the file's version.
 //   registry   - { "key": "SOFTWARE\\...", "value": "ValueName" } under HKLM; shows that value.
 //   content    - { "path": "C:\\...\\version.txt", "pattern": "Version=([0-9.]+)" }
@@ -13,6 +17,43 @@
 //   required   - true = show "Not installed" in red. Otherwise it shows in normal text.
 //
 // JSON needs every backslash written twice (\\), including inside patterns.
+//
+// ---------------------------------------------------------------------------------------------
+// Writing a "pattern" for content (regular expressions, .NET syntax)
+// ---------------------------------------------------------------------------------------------
+// The pattern searches the file's text. Whatever is inside the first ( ) is shown as the version.
+// If the pattern has no ( ), the whole match is shown. Only the first match in the file is used.
+// Patterns are case-sensitive; start with (?i) to ignore case. ^ and $ mean start / end of a line.
+//
+//   In a pattern        Means                                       Write it in JSON as
+//   .                   any single character                        .
+//   \d                  a digit 0-9                                 \\d
+//   \s                  a space or tab                              \\s
+//   \.                  a real dot (a plain . means "any character") \\.
+//   [0-9.]              one digit or dot                            [0-9.]
+//   [^"]                any character except "                      [^\"]
+//   +                   one or more of the previous item            +
+//   *                   zero or more of the previous item           *
+//   ?                   the previous item is optional               ?
+//   ( )                 the part to show as the version             ( )
+//   (?i)                ignore upper / lower case (put at the start) (?i)
+//
+// Examples (file contents -> pattern as written in this file -> result):
+//   4.2.17                            "([0-9.]+)"                               4.2.17
+//   Version=4.2.17                    "Version=([0-9.]+)"                       4.2.17
+//   Version = 4.2.17                  "Version\\s*=\\s*([0-9.]+)"               4.2.17
+//   version: 4.2.17  (any case)       "(?i)version:\\s*([0-9.]+)"               4.2.17
+//   ProductVersion=12.5.0.311         "ProductVersion=(\\d+\\.\\d+\\.\\d+\\.\\d+)"   12.5.0.311
+//   <version>3.1.4</version>          "<version>([^<]+)</version>"              3.1.4
+//   "version": "2.0.9"                "\"version\"\\s*:\\s*\"([^\"]+)\""       2.0.9
+//   Build 1234 (Release)              "Build (\\d+)"                            1234
+//   a line that is only a version     "^([0-9.]+)$"                             4.2.17
+//
+// If the pattern matches nothing, the value shows "Version not found" in orange (hover for details).
+// Test a pattern at https://regex101.com (choose the .NET flavor) using single backslashes,
+// then double every backslash when you paste it here.
+// ---------------------------------------------------------------------------------------------
+//
 // Edit this file (Config\software.json next to HelpDeskProTools.exe); changes apply the next time PC Details is opened or refreshed.
 {
   "software": [
@@ -41,6 +82,11 @@
     {
       "name": "MS Office",
       "builtIn": "Office"
+    },
+    {
+      "name": "NSCHILL",
+      "label": "NSCHILL status/user",
+      "process": "nschill.exe"
     }
 
     // More examples - remove the // to use them:
