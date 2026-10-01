@@ -38,6 +38,12 @@ public class FileContentRef
     public string Pattern { get; set; } = "";
 }
 
+/// <summary>Config\excluded_video_cards.json</summary>
+public class ExcludedVideoCards
+{
+    public List<string> Excluded { get; set; } = new();
+}
+
 /// <summary>Config\excluded_users.json</summary>
 public class ExcludedUsers
 {

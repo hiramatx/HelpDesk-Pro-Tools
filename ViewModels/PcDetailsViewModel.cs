@@ -36,10 +36,10 @@ public partial class PcDetailsViewModel : ViewModelBase
     [ObservableProperty] public partial double DiskPercent { get; set; }
     [ObservableProperty] public partial string DiskText { get; set; } = "";
 
-    // ---- Sections. PC / Hardware / Software are 2 columns, Users is 1 column.
+    // ---- Sections. PC / Software are 2 columns, Users / Hardware are 1 column.
     public ObservableCollection<InfoRow> PcRows { get; } = new();
     public ObservableCollection<InfoField> UserFields { get; } = new();
-    public ObservableCollection<InfoRow> HardwareRows { get; } = new();
+    public ObservableCollection<InfoField> HardwareFields { get; } = new();
     public ObservableCollection<InfoRow> SoftwareRows { get; } = new();
 
     public ObservableCollection<DeviceError> DeviceErrors { get; } = new();
@@ -66,7 +66,7 @@ public partial class PcDetailsViewModel : ViewModelBase
 
             Reset(PcRows, ToRows(BuildPc(d)));
             Reset(UserFields, BuildUsers(d));
-            Reset(HardwareRows, ToRows(BuildHardware(d)));
+            Reset(HardwareFields, BuildHardware(d));
             Reset(SoftwareRows, ToRows(BuildSoftware(d)));
             Reset(DeviceErrors, d.DeviceErrors);
             HasDeviceErrors = DeviceErrors.Count > 0;
@@ -84,7 +84,7 @@ public partial class PcDetailsViewModel : ViewModelBase
         }
     }
 
-    // Fields are listed left-to-right, row by row (2 per row).
+    // 2-column sections list their fields left-to-right, row by row (2 per row).
 
     private static IEnumerable<InfoField> BuildPc(PcDetails d)
     {
@@ -97,9 +97,27 @@ public partial class PcDetailsViewModel : ViewModelBase
         yield return new("IP Address", d.IpAddress);
         yield return new("Network Speed", d.NetworkSpeed);
         yield return new("Last Boot Time", d.LastBoot?.ToString("g") ?? "");
-        yield return new("Uptime", d.LastBoot is { } boot ? FormatUptime(DateTime.Now - boot) : "");
+        yield return BuildUptime(d.LastBoot);
         yield return new("PC OU", d.PcOu);
         yield return InfoField.Spacer;
+    }
+
+    // Uptime: green up to 48 hours, yellow over 48 hours, red over 96 hours.
+    private const double UptimeCautionHours = 48;
+    private const double UptimeBadHours = 96;
+
+    private static InfoField BuildUptime(DateTime? lastBoot)
+    {
+        if (lastBoot is not { } boot) return new InfoField("Uptime", "");
+
+        var uptime = DateTime.Now - boot;
+        var (status, tip) = uptime.TotalHours switch
+        {
+            > UptimeBadHours => (FieldStatus.Bad, $"Up more than {UptimeBadHours:0} hours - a restart is overdue"),
+            > UptimeCautionHours => (FieldStatus.Caution, $"Up more than {UptimeCautionHours:0} hours"),
+            _ => (FieldStatus.Ok, $"Restarted within the last {UptimeCautionHours:0} hours"),
+        };
+        return new InfoField("Uptime", FormatUptime(uptime)) { Status = status, ToolTip = tip };
     }
 
     private static IEnumerable<InfoField> BuildUsers(PcDetails d)
@@ -107,26 +125,33 @@ public partial class PcDetailsViewModel : ViewModelBase
         yield return new("Logged in User", d.LoggedInUser);
         yield return new("Logged in User OU", d.LoggedInUserOu);
         yield return new("Logged in From", d.LoggedInFrom);
-        yield return new("Local Admin Members", d.LocalAdmins);
-        yield return new("Remote Desktop Users", d.RemoteDesktopUsers);
-        yield return new("Direct Access Users", d.DirectAccessUsers);
+
+        // Members are highlighted: local admins red, remote access groups orange.
+        // "(none)", "Group not found" and read errors stay in normal text.
+        yield return Group("Local Admin Members", d.LocalAdmins, FieldStatus.Bad);
+        yield return Group("Remote Desktop Users", d.RemoteDesktopUsers, FieldStatus.Warn);
+        yield return Group("Direct Access Users", d.DirectAccessUsers, FieldStatus.Warn);
     }
 
+    private static InfoField Group(string label, GroupMembers group, FieldStatus statusWhenPopulated) =>
+        new(label, group.Text) { Status = group.HasMembers ? statusWhenPopulated : FieldStatus.Normal };
+
+    // One field per line.
     private static IEnumerable<InfoField> BuildHardware(PcDetails d)
     {
         var fields = new List<InfoField>
         {
             new("Processor", d.Processor),
             new("Total RAM", d.TotalRam),
-            new("MAC Address", d.MacAddress),
             new("RAM Sticks", d.RamConfig),
+            new("MAC Address", d.MacAddress),
         };
 
         AddNumbered(fields, "Video Card", d.VideoCards);
         AddNumbered(fields, "Monitor", d.Monitors.Select(m => $"{m.Name}, {m.Resolution}").ToList());
-        AddPairs(fields, d.Drives.Select(x => new InfoField(
+        fields.AddRange(d.Drives.Select(x => new InfoField(
             $"Drive {x.Letter.TrimEnd(':')}",
-            $"Total {x.TotalGb:0} GB, Used {x.UsedGb:0} GB, Free {x.FreeGb:0} GB")).ToList());
+            $"Total {x.TotalGb:0} GB, Used {x.UsedGb:0} GB, Free {x.FreeGb:0} GB")));
 
         return fields;
     }
@@ -144,22 +169,13 @@ public partial class PcDetailsViewModel : ViewModelBase
             yield return new InfoField(s.Label, s.Value) { Status = s.Status, ToolTip = s.ToolTip };
     }
 
-    /// <summary>"Video Card 1", "Video Card 2"... always filling whole rows.</summary>
+    /// <summary>"Video Card 1", "Video Card 2"...</summary>
     private static void AddNumbered(List<InfoField> fields, string label, IReadOnlyList<string> values)
     {
         if (values.Count == 0)
-        {
-            AddPairs(fields, new List<InfoField> { new($"{label} 1", "None found") });
-            return;
-        }
-        AddPairs(fields, values.Select((v, i) => new InfoField($"{label} {i + 1}", v)).ToList());
-    }
-
-    /// <summary>Adds items and pads with a spacer so the next group starts on a new row.</summary>
-    private static void AddPairs(List<InfoField> fields, List<InfoField> items)
-    {
-        fields.AddRange(items);
-        if (items.Count % 2 == 1) fields.Add(InfoField.Spacer);
+            fields.Add(new InfoField($"{label} 1", "None found"));
+        else
+            fields.AddRange(values.Select((v, i) => new InfoField($"{label} {i + 1}", v)));
     }
 
     /// <summary>Pairs fields left/right into rows (a trailing odd field gets an empty right cell).</summary>

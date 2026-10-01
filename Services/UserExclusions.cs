@@ -44,11 +44,5 @@ public sealed class UserExclusions
         return patterns.Any(p => p.IsMatch(member) || p.IsMatch(shortName));
     }
 
-    // "svc_*" -> ^svc_.*$ (case-insensitive); everything except * is literal.
-    private static List<Regex> Compile(IEnumerable<string>? patterns) =>
-        (patterns ?? Enumerable.Empty<string>())
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Select(p => new Regex("^" + Regex.Escape(p.Trim()).Replace(@"\*", ".*") + "$",
-                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-            .ToList();
+    private static List<Regex> Compile(IEnumerable<string>? patterns) => Wildcard.Compile(patterns);
 }

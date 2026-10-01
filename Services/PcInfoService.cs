@@ -165,10 +165,27 @@ public static class PcInfoService
         }
     }
 
+    public const string ExcludedVideoCardsFile = "excluded_video_cards.json";
+
     private static void ReadVideo(ManagementScope cimv2, PcDetails d)
     {
+        // Cards listed in Config\excluded_video_cards.json (e.g. virtual display adapters) are not shown.
+        var excluded = Wildcard.Compile(null);
+        try
+        {
+            excluded = Wildcard.Compile(ConfigFiles.Load<ExcludedVideoCards>(ExcludedVideoCardsFile)?.Excluded);
+        }
+        catch (Exception ex)
+        {
+            d.Warnings.Add($"{ex.Message} (no video cards were excluded)");
+        }
+
         foreach (var vc in WmiHelper.Query(cimv2, "SELECT Name FROM Win32_VideoController"))
-            d.VideoCards.Add(vc["Name"]?.ToString() ?? "Unknown");
+        {
+            var name = vc["Name"]?.ToString()?.Trim() ?? "Unknown";
+            if (!Wildcard.IsMatch(name, excluded))
+                d.VideoCards.Add(name);
+        }
     }
 
     private static void ReadMonitors(string pc, PcDetails d)
@@ -277,18 +294,32 @@ public static class PcInfoService
                  ?? ActiveDirectoryService.GetGroupMembers(DirectAccessGroupName), exclusions.FilterDirectAccessUsers));
     }
 
-    /// <summary>Applies exclusions and formats the members as a comma-separated list.</summary>
-    private static string Join(List<string>? members, Func<IEnumerable<string>, IEnumerable<string>> filter)
+    /// <summary>
+    /// Applies exclusions (matched against the full name, domain included), then shows the
+    /// remaining members without their domain as a comma-separated list.
+    /// </summary>
+    private static GroupMembers Join(List<string>? members, Func<IEnumerable<string>, IEnumerable<string>> filter)
     {
-        if (members is null) return "Group not found";
-        var shown = filter(members).ToList();
-        return shown.Count == 0 ? "(none)" : string.Join(", ", shown);
+        if (members is null) return new GroupMembers("Group not found", false);
+
+        var shown = filter(members)
+            .Select(WithoutDomain)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return shown.Count == 0
+            ? new GroupMembers("(none)", false)
+            : new GroupMembers(string.Join(", ", shown), true);
     }
 
-    private static string SafeGroup(Func<string> read)
+    // "CORP\Domain Admins" -> "Domain Admins"
+    private static string WithoutDomain(string name) =>
+        name.Contains('\\') ? name[(name.LastIndexOf('\\') + 1)..] : name;
+
+    private static GroupMembers SafeGroup(Func<GroupMembers> read)
     {
         try { return read(); }
-        catch (Exception ex) { return $"Could not read: {ex.Message}"; }
+        catch (Exception ex) { return new GroupMembers($"Could not read: {ex.Message}", false); }
     }
 
     // ------------------------------------------------------------------ Software

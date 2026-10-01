@@ -1,0 +1,13 @@
+// Video cards to hide from the Hardware card of PC Details
+// (for example virtual display adapters added by remote-control or docking software).
+//
+// Match the name as it appears in the window. Not case-sensitive.
+//   * is a wildcard: "*Remote Display*" hides any adapter with "Remote Display" in its name.
+//
+// Example:
+//   "excluded": [ "Microsoft Basic Display Adapter", "Microsoft Remote Display Adapter", "Citrix*", "*Mirror Driver*" ]
+//
+// Changes apply the next time PC Details is opened or refreshed.
+{
+  "excluded": []
+}

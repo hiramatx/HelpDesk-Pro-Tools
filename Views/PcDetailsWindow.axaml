@@ -40,6 +40,9 @@
         <Style Selector="SelectableTextBlock.fieldValue.warn">
             <Setter Property="Foreground" Value="{StaticResource StandardIndicatorBrush}" />
         </Style>
+        <Style Selector="SelectableTextBlock.fieldValue.caution">
+            <Setter Property="Foreground" Value="{DynamicResource CautionTextBrush}" />
+        </Style>
     </Window.Styles>
 
     <Window.Resources>
@@ -50,16 +53,20 @@
                            MinWidth="112" Margin="0,1,8,0" VerticalAlignment="Top" />
                 <SelectableTextBlock Grid.Column="1" Classes="fieldValue" Text="{Binding Value}"
                                      Classes.ok="{Binding IsOk}" Classes.bad="{Binding IsBad}" Classes.warn="{Binding IsWarn}"
+                                     Classes.caution="{Binding IsCaution}"
                                      ToolTip.Tip="{Binding ToolTip}" />
             </Grid>
         </DataTemplate>
 
-        <!-- Wider label column for the single-column Users section -->
+        <!-- Wider label column for the single-column Users and Hardware sections -->
         <DataTemplate x:Key="WideFieldTemplate" x:DataType="m:InfoField">
             <Grid ColumnDefinitions="Auto,*" Margin="4,4">
                 <TextBlock Classes="label" Text="{Binding Label, StringFormat='{}{0}:'}"
                            MinWidth="150" Margin="0,1,8,0" VerticalAlignment="Top" />
-                <SelectableTextBlock Grid.Column="1" Classes="fieldValue" Text="{Binding Value}" />
+                <SelectableTextBlock Grid.Column="1" Classes="fieldValue" Text="{Binding Value}"
+                                     Classes.ok="{Binding IsOk}" Classes.bad="{Binding IsBad}" Classes.warn="{Binding IsWarn}"
+                                     Classes.caution="{Binding IsCaution}"
+                                     ToolTip.Tip="{Binding ToolTip}" />
             </Grid>
         </DataTemplate>
 
@@ -156,8 +163,8 @@
                     <Border Classes="card">
                         <StackPanel>
                             <TextBlock Classes="cardTitle" Text="Hardware" />
-                            <ItemsControl ItemsSource="{Binding HardwareRows}"
-                                          ItemTemplate="{StaticResource RowTemplate}" />
+                            <ItemsControl ItemsSource="{Binding HardwareFields}"
+                                          ItemTemplate="{StaticResource WideFieldTemplate}" />
                         </StackPanel>
                     </Border>
 

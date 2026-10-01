@@ -40,9 +40,9 @@ The main window opens as tall as the monitor's usable area (screen minus taskbar
 | Section | Fields |
 |---|---|
 | Utilization | Liquid-fill gauges for CPU / RAM / C: (green up to 50%, yellow 51-85%, red 86-100%) |
-| PC | Name, model, OS with version and build (e.g. 25H2), serial, UAC/LUA, domain controller, IP, network speed, last boot, uptime, OU |
-| Users | Logged-in user (no domain) and OU, console or remote (RDP), members of local Administrators, Remote Desktop Users and "Direct Access Users" (local group, or the AD group if there is no local one), minus anyone in `excluded_users.json` |
-| Hardware | Processor, total RAM, MAC, RAM sticks per slot, each video card, monitor (name, resolution) and fixed drive (total / used / free) |
+| PC | Name, model, OS with version and build (e.g. 25H2), serial, UAC/LUA, domain controller, IP, network speed, last boot, uptime (green up to 48 h, yellow over 48 h, red over 96 h), OU |
+| Users | Logged-in user (no domain) and OU, console or remote (RDP), members of local Administrators, Remote Desktop Users and "Direct Access Users" (local group, or the AD group if there is no local one), minus anyone in `excluded_users.json`. Names are shown without the domain; local admins are red, Remote Desktop and Direct Access members orange |
+| Hardware | Processor, total RAM, RAM sticks per slot, MAC, each video card (minus those in `excluded_video_cards.json`), monitor (name, resolution) and fixed drive (total / used / free) |
 | Software | Programs listed in `software.json`, coloured against `baselines.json` (green = up to date, red = outdated or required but missing, orange = couldn't check; hover for details) |
 | Device Manager | Devices with errors, if any |
 
@@ -64,8 +64,9 @@ All settings files live in `Config\` next to `HelpDeskProTools.exe`. When the ap
 | `software.json` | Programs in the PC Details Software card, and where to find each version |
 | `baselines.json` | Minimum version per program (green / red colouring) |
 | `excluded_users.json` | Members hidden from the Local Admin / Remote Desktop / Direct Access lists |
+| `excluded_video_cards.json` | Video cards hidden from the Hardware card (e.g. virtual display adapters) |
 
-Changes to `software.json`, `baselines.json` and `excluded_users.json` apply the next time PC Details is opened or refreshed. PC-name history and the theme choice stay per user in `%AppData%\HelpDeskProTools\settings.json`.
+Changes to `software.json`, `baselines.json` and the two `excluded_*.json` files apply the next time PC Details is opened or refreshed. PC-name history and the theme choice stay per user in `%AppData%\HelpDeskProTools\settings.json`.
 
 ### scripts.json
 
@@ -137,6 +138,14 @@ Keys are the `name` values from `software.json`. Versions compare number by numb
 
 Not case-sensitive. `Domain Admins` also matches `CORP\Domain Admins`, and `*` is a wildcard.
 
+### excluded_video_cards.json
+
+```jsonc
+{ "excluded": [ "Microsoft Basic Display Adapter", "*Remote Display*", "Citrix*" ] }
+```
+
+Not case-sensitive, and `*` is a wildcard.
+
 ## Project layout
 
 ```
@@ -148,6 +157,6 @@ Services/     RemoteOperations, PcInfoService, SoftwareInventoryService, ActiveD
 ViewModels/   MainViewModel, PcDetailsViewModel, OutputViewModel, SendMessageViewModel, ScriptCategoryViewModel
 Views/        MainWindow, PcDetailsWindow, OutputWindow, SendMessageWindow, MessageDialog
 Themes/       AppStyles.axaml (cards, flat buttons, tabs); theme colours are in App.axaml
-Config/       scripts.json, software.json, baselines.json, excluded_users.json (copied next to the exe)
+Config/       scripts.json, software.json, baselines.json, excluded_users.json, excluded_video_cards.json (copied next to the exe)
 Scripts/      Sample .ps1 files referenced by scripts.json
 ```

@@ -23,6 +23,7 @@
                     <SolidColorBrush x:Key="FlatButtonFgBrush" Color="#1F2937" />
                     <SolidColorBrush x:Key="GaugeTrackBrush" Color="#F3F4F6" />
                     <SolidColorBrush x:Key="ConsoleBgBrush" Color="#F9FAFB" />
+                    <SolidColorBrush x:Key="CautionTextBrush" Color="#B45309" />
                     <BoxShadows x:Key="CardShadow">0 2 8 0 #14000000</BoxShadows>
                 </ResourceDictionary>
 
@@ -42,6 +43,7 @@
                     <SolidColorBrush x:Key="FlatButtonFgBrush" Color="#E5E7EB" />
                     <SolidColorBrush x:Key="GaugeTrackBrush" Color="#2A2A2A" />
                     <SolidColorBrush x:Key="ConsoleBgBrush" Color="#161616" />
+                    <SolidColorBrush x:Key="CautionTextBrush" Color="#EAB308" />
                     <BoxShadows x:Key="CardShadow">0 2 8 0 #40000000</BoxShadows>
                 </ResourceDictionary>
 

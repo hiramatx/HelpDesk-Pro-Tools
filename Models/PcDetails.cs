@@ -30,9 +30,9 @@ public class PcDetails
     public string LoggedInUser { get; set; } = "";
     public string LoggedInUserOu { get; set; } = "";
     public string LoggedInFrom { get; set; } = "";
-    public string LocalAdmins { get; set; } = "";
-    public string RemoteDesktopUsers { get; set; } = "";
-    public string DirectAccessUsers { get; set; } = "";
+    public GroupMembers LocalAdmins { get; set; } = GroupMembers.Empty;
+    public GroupMembers RemoteDesktopUsers { get; set; } = GroupMembers.Empty;
+    public GroupMembers DirectAccessUsers { get; set; } = GroupMembers.Empty;
 
     // ---- Hardware
     public string Processor { get; set; } = "";
@@ -58,8 +58,14 @@ public record DriveSpace(string Letter, double TotalGb, double UsedGb, double Fr
 
 public record DeviceError(string Name, int Code, string Description);
 
-/// <summary>How a value is coloured: Ok = green, Bad = red, Warn = orange, Normal = default text.</summary>
-public enum FieldStatus { Normal, Ok, Bad, Warn }
+/// <summary>A group's member list as shown, and whether it actually lists members (not "(none)" or an error).</summary>
+public record GroupMembers(string Text, bool HasMembers)
+{
+    public static GroupMembers Empty { get; } = new("", false);
+}
+
+/// <summary>How a value is coloured: Ok = green, Caution = yellow, Warn = orange, Bad = red, Normal = default text.</summary>
+public enum FieldStatus { Normal, Ok, Bad, Warn, Caution }
 
 /// <summary>One software line: the label shown, what to show, its colour and an optional hover explanation.</summary>
 public record SoftwareResult(string Label, string Value, FieldStatus Status, string? ToolTip);
@@ -74,6 +80,7 @@ public record InfoField(string Label, string Value)
     public bool IsOk => Status == FieldStatus.Ok;
     public bool IsBad => Status == FieldStatus.Bad;
     public bool IsWarn => Status == FieldStatus.Warn;
+    public bool IsCaution => Status == FieldStatus.Caution;
 
     public static InfoField Spacer { get; } = new("", "");
 }
