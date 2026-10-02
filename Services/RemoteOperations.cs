@@ -223,7 +223,7 @@ public static class RemoteOperations
 
         log("");
         log("Done. Opening folder...");
-        ProcessLauncher.Launch("explorer.exe", $"\"{dest}\"");
+        ProcessLauncher.OpenFolder(dest);
     }, ct);
 
     private static void CopyIfExists(string source, string destFolder, Action<string> log)

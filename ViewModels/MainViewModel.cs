@@ -170,8 +170,17 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     private Task CShare() => Launch(pc =>
     {
-        ProcessLauncher.Launch("explorer.exe", $@"\\{pc}\c$");
-        ProcessLauncher.Launch("explorer.exe", $@"\\{pc}\c$\Users\{StandardUserName}");
+        // Folder problems are reported from the browser's own thread, so hop back to the UI thread.
+        void ShowError(string message) =>
+            Dispatcher.UIThread.Post(() => _ = _dialogs.ShowErrorAsync("C Share", message));
+
+        // Two windows for moving files between the tech's PC and the target PC, both opened with the
+        // account this app runs as (e.g. d.smith-admin):
+        //   1. the tech's own profile on this PC  - C:\Users\d.smith ("-admin" removed)
+        //   2. the target PC's C: drive           - \\PC\c$
+        var usersFolder = System.IO.Path.GetDirectoryName(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)) ?? @"C:\Users";
+        ProcessLauncher.OpenFolder(System.IO.Path.Combine(usersFolder, StandardUserName), ShowError);
+        ProcessLauncher.OpenFolder($@"\\{pc}\c$", ShowError);
     });
 
     [RelayCommand]

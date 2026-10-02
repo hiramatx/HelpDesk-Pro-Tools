@@ -32,7 +32,7 @@ The main window opens as tall as the monitor's usable area (screen minus taskbar
 | Reboot PC | C# WMI `Win32_OperatingSystem.Win32Shutdown` (forced restart), then watches the PC go offline and come back |
 | Send Message | `msg.exe * /server:PC` |
 | Remote PS | `pwsh` → `Enter-PSSession` |
-| C Share | Explorer at `\\PC\c$` and `\\PC\c$\Users\<you without -admin>` |
+| C Share | Two file windows for moving files between the tech's PC and the target: the tech's own profile on this PC (`C:\Users\<you without -admin>`) and `\\PC\c$`. Both use the account the app runs as. When the app is started with "Run as different user", they open in an in-app file window, because Windows always runs File Explorer as the logged-on desktop user |
 | Remote Assist / Remote Admin / Computer Mgmt | `msra /offerra`, `mstsc /admin`, `compmgmt.msc /computer:` |
 
 **PC Details** (WMI via `System.Management`, remote registry via WMI `StdRegProv`, the `c$` share and AD via `System.DirectoryServices`):

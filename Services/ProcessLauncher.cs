@@ -17,6 +17,12 @@ public static class ProcessLauncher
         Process.Start(new ProcessStartInfo(fileName, arguments) { UseShellExecute = true })?.Dispose();
     }
 
+    /// <summary>
+    /// Opens a folder using this app's credentials: File Explorer when the app runs as the logged-on
+    /// user, otherwise an in-app file window (see <see cref="FolderBrowser"/> for why).
+    /// </summary>
+    public static void OpenFolder(string path, Action<string>? onError = null) => FolderBrowser.Open(path, onError);
+
     /// <summary>Opens a PowerShell 7 console (falls back to Windows PowerShell 5.1).</summary>
     public static void LaunchPowerShell(string arguments)
     {
