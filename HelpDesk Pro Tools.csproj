@@ -2,6 +2,8 @@
   <PropertyGroup>
     <RootNamespace>HelpDesk_Pro_Tools</RootNamespace>
     <AssemblyName>HelpDeskProTools</AssemblyName>
+    <!-- 5.x = the C# / Avalonia rewrite (the earlier WPF tools ended at 3.0; 4.x was skipped) -->
+    <Version>5.0.4</Version>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
