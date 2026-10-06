@@ -7,9 +7,9 @@
         Title="HelpDesk Pro Tools"
         Width="950" Height="1075"
         MinWidth="760" MinHeight="500"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="Manual">
 
-    <!-- Height is fitted to the monitor at startup (see code-behind). On short screens the
+    <!-- The window fills the right half of the monitor at startup (see code-behind). On short screens the
          cards scroll instead of the Scripts card being squeezed away. -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
     <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="18,16">
