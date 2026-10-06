@@ -35,15 +35,15 @@ The main window opens as tall as the monitor's usable area (screen minus taskbar
 | C Share | Two file windows for moving files between the tech's PC and the target: the tech's own profile on this PC (`C:\Users\<you without -admin>`) and `\\PC\c$`. Both use the account the app runs as. When the app is started with "Run as different user", they open in an in-app file window, because Windows always runs File Explorer as the logged-on desktop user |
 | Remote Assist / Remote Admin / Computer Mgmt | `msra /offerra`, `mstsc /admin`, `compmgmt.msc /computer:` |
 
-**PC Details** (WMI via `System.Management`, remote registry via WMI `StdRegProv`, the `c$` share and AD via `System.DirectoryServices`):
+The main window fills the right half of its screen and **PC Details** opens filling the left half of the same screen (taskbar excluded). Data comes from WMI via `System.Management`, remote registry via WMI `StdRegProv`, the `c$` share and AD via `System.DirectoryServices`:
 
 | Section | Fields |
 |---|---|
 | Utilization | Liquid-fill gauges for CPU / RAM / C: (green up to 50%, yellow 51-85%, red 86-100%) |
-| PC | Name, model, OS with version and build (e.g. 25H2), serial, UAC/LUA, domain controller, IP, network speed, last boot, uptime (green up to 48 h, yellow over 48 h, red over 96 h), OU |
+| PC | Name, model, OS with version and build (e.g. 25H2), serial, UAC/LUA, domain controller, IP (orange on 105.195.x.x, green otherwise), network speed in Gbits/sec, last boot, uptime (green up to 48 h, yellow over 48 h, red over 96 h), OU |
 | Users | Logged-in user (no domain) and OU, console or remote (RDP), members of local Administrators, Remote Desktop Users and "Direct Access Users" (local group, or the AD group if there is no local one), minus anyone in `excluded_users.json`. Names are shown without the domain; local admins are red, Remote Desktop and Direct Access members orange |
 | Hardware | Processor, total RAM, RAM sticks per slot, MAC, each video card (minus those in `excluded_video_cards.json`), monitor (name, resolution) and fixed drive (total / used / free) |
-| Software | Programs listed in `software.json`, coloured against `baselines.json` (green = up to date, red = outdated or required but missing, orange = couldn't check; hover for details) |
+| Software | Programs listed in `software.json`, coloured against `baselines.json` (green = up to date, red = outdated or required but missing, orange = couldn't check; hover for details), plus GPO system and user dates: when Group Policy last applied to the PC and the logged-in user (green within the last 7 days, today included; red otherwise) |
 | Device Manager | Devices with errors, if any |
 
 ## Requirements on the admin PC / targets

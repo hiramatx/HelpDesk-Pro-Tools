@@ -40,6 +40,7 @@ public static class PcInfoService
             Try(d, "Video card", () => ReadVideo(cimv2, d));
             Try(d, "Monitors", () => ReadMonitors(pc, d));
             Try(d, "Software", () => ReadSoftware(pc, registry, d));
+            Try(d, "Group Policy", () => ReadGpo(cimv2, registry, d));
             Try(d, "Device Manager", () => ReadDeviceErrors(cimv2, d));
         }
         finally
@@ -109,7 +110,7 @@ public static class PcInfoService
 
         var adapter = WmiHelper.Query(cimv2, $"SELECT Name, Speed FROM Win32_NetworkAdapter WHERE Index = {nic["Index"]}").FirstOrDefault();
         d.NetworkSpeed = adapter?["Speed"] is { } speed
-            ? $"{Convert.ToDouble(speed) / 1_000_000:0} Mbit/s"
+            ? $"{Convert.ToDouble(speed) / 1_000_000_000:0.##} Gbits/sec"
             : "Unknown";
     }
 
@@ -270,6 +271,68 @@ public static class PcInfoService
         d.LoggedInFrom = from;
         try { d.LoggedInUserOu = ActiveDirectoryService.GetUserOu(sam); }
         catch (Exception ex) { d.LoggedInUserOu = $"AD lookup failed: {ex.Message}"; }
+    }
+
+    // ------------------------------------------------------------------ Group Policy
+
+    private const string GpoStateKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Group Policy\State";
+    private const string GpoCoreExtension = @"Extension-List\{00000000-0000-0000-0000-000000000000}";
+
+    /// <summary>Last Group Policy refresh for the computer and the logged-in user, from HKLM\...\Group Policy\State.</summary>
+    private static void ReadGpo(ManagementScope cimv2, RemoteRegistry? registry, PcDetails d)
+    {
+        if (registry is null)
+        {
+            d.GpoSystem = d.GpoUser = GpoDate.Unknown("Remote registry not available");
+            return;
+        }
+
+        d.GpoSystem = ReadGpoTime(registry, "Machine");
+
+        if (d.LoggedInUser is "" or "No user logged in")
+        {
+            d.GpoUser = GpoDate.Unknown("No user logged in");
+            return;
+        }
+
+        // Group Policy keeps user state under the user's SID; explorer.exe's owner gives us that SID.
+        var sid = FindUserSid(cimv2, d.LoggedInUser);
+        d.GpoUser = sid is null
+            ? GpoDate.Unknown($"Could not find the SID of {d.LoggedInUser}")
+            : ReadGpoTime(registry, sid);
+    }
+
+    private static GpoDate ReadGpoTime(RemoteRegistry registry, string subKey)
+    {
+        var key = $@"{GpoStateKey}\{subKey}\{GpoCoreExtension}";
+        var when = FileTime(registry, key, "EndTime") ?? FileTime(registry, key, "StartTime");
+        return when is null ? GpoDate.Unknown("Group Policy has not been applied") : new GpoDate(when, null);
+    }
+
+    /// <summary>A FILETIME stored as two DWORDs ("EndTimeHi" / "EndTimeLo"), in local time.</summary>
+    private static DateTime? FileTime(RemoteRegistry registry, string key, string name)
+    {
+        var hi = registry.GetDword(key, name + "Hi");
+        var lo = registry.GetDword(key, name + "Lo");
+        if (hi is null || lo is null) return null;
+        var ft = ((long)hi.Value << 32) | lo.Value;
+        return ft > 0 ? DateTime.FromFileTimeUtc(ft).ToLocalTime() : null;
+    }
+
+    private static string? FindUserSid(ManagementScope cimv2, string sam)
+    {
+        foreach (var proc in WmiHelper.Query(cimv2, "SELECT Handle FROM Win32_Process WHERE Name = 'explorer.exe'").Cast<ManagementObject>())
+        {
+            var owner = new object[2];
+            if (Convert.ToInt32(proc.InvokeMethod("GetOwner", owner)) != 0 ||
+                !string.Equals(owner[0] as string, sam, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var sid = new object[1];
+            if (Convert.ToInt32(proc.InvokeMethod("GetOwnerSid", sid)) == 0 && sid[0] is string s)
+                return s;
+        }
+        return null;
     }
 
     private static void ReadGroups(string pc, PcDetails d)
