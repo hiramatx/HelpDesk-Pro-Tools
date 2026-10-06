@@ -18,6 +18,7 @@ public static class SoftwareInventoryService
     public const string BaselinesFile = "baselines.json";
 
     private const int MaxContentBytes = 1024 * 1024; // only search the first 1 MB of a content file
+    private const int UninstallReadParallelism = 16;
 
     private static readonly string[] UninstallKeys =
     {
@@ -192,16 +193,18 @@ public static class SoftwareInventoryService
     private static List<(string Name, string Key)> ReadUninstallNames(RemoteRegistry? registry)
     {
         var list = new List<(string, string)>();
-        if (registry is null) return list;
+        if (registry is not { } reg) return list;
 
+        // Hundreds of keys, one network round trip each: read them in parallel, keeping the registry order.
         foreach (var root in UninstallKeys)
         {
-            foreach (var sub in registry.GetSubKeyNames(root))
-            {
-                var key = $@"{root}\{sub}";
-                if (registry.GetString(key, "DisplayName") is { Length: > 0 } displayName)
-                    list.Add((displayName, key));
-            }
+            list.AddRange(reg.GetSubKeyNames(root)
+                .AsParallel().AsOrdered().WithDegreeOfParallelism(UninstallReadParallelism)
+                .Select(sub => $@"{root}\{sub}")
+                .Select(key => (Name: reg.GetString(key, "DisplayName"), Key: key))
+                .Where(e => !string.IsNullOrEmpty(e.Name))
+                .Select(e => (e.Name!, e.Key))
+                .ToList());
         }
         return list;
     }

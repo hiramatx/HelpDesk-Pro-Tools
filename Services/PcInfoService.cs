@@ -70,7 +70,13 @@ public static class PcInfoService
         });
         var registryTask = Task.Run<RemoteRegistry?>(() =>
         {
-            try { return new RemoteRegistry(pc); }
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                var registry = new RemoteRegistry(pc);
+                lock (d.Timings) d.Timings.Add(new SectionTiming($"Registry connect ({registry.Source})", sw.Elapsed));
+                return registry;
+            }
             catch (Exception ex) { Warn(d, $"Registry: {ex.Message}"); return null; }
         });
 
