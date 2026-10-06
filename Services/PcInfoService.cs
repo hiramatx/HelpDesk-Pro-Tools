@@ -1,11 +1,34 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Management;
+using System.Security.Principal;
+using System.Threading;
 using System.Threading.Tasks;
 using HelpDesk_Pro_Tools.Models;
 
 namespace HelpDesk_Pro_Tools.Services;
+
+/// <summary>Section names reported as each part of PC Details finishes (see <see cref="PcInfoService.GetDetailsAsync"/>).</summary>
+public static class PcSection
+{
+    public const string Connect = "Connect";
+    public const string PcOu = "PC OU";
+    public const string System = "System";
+    public const string Cpu = "CPU";
+    public const string Memory = "Memory";
+    public const string Drives = "Drives";
+    public const string Network = "Network";
+    public const string DomainController = "Domain controller";
+    public const string LoggedInUser = "Logged in user";
+    public const string LocalGroups = "Local groups";
+    public const string Video = "Video card";
+    public const string Monitors = "Monitors";
+    public const string Software = "Software";
+    public const string GroupPolicy = "Group Policy";
+    public const string DeviceManager = "Device Manager";
+}
 
 /// <summary>Collects hardware / user / software details from a remote PC via WMI, the admin share and Active Directory.</summary>
 public static class PcInfoService
@@ -15,54 +38,114 @@ public static class PcInfoService
 
     private const string CurrentVersionKey = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion";
 
-    public static Task<PcDetails> GetDetailsAsync(string pc) => Task.Run(() =>
+    /// <summary>
+    /// Reads everything in parallel: the sections don't depend on each other except where noted, so the
+    /// total wait is roughly the slowest section instead of the sum of all of them.
+    /// <paramref name="sectionDone"/> receives the details and a <see cref="PcSection"/> name each time a
+    /// section finishes; only the fields of finished sections are safe to read before the task completes.
+    /// </summary>
+    public static async Task<PcDetails> GetDetailsAsync(string pc, IProgress<(PcDetails Details, string Section)>? sectionDone = null)
     {
         var d = new PcDetails { ComputerName = pc };
+        var total = Stopwatch.StartNew();
 
-        try { d.PcOu = ActiveDirectoryService.GetComputerOu(pc); }
-        catch (Exception ex) { d.PcOu = $"AD lookup failed: {ex.Message}"; }
+        Task Section(string name, Func<Task> read) => Task.Run(async () =>
+        {
+            var sw = Stopwatch.StartNew();
+            try { await read(); }
+            catch (Exception ex) { Warn(d, $"{name}: {ex.Message}"); }
+            finally
+            {
+                lock (d.Timings) d.Timings.Add(new SectionTiming(name, sw.Elapsed));
+                sectionDone?.Report((d, name));
+            }
+        });
+        Task SyncSection(string name, Action read) => Section(name, () => { read(); return Task.CompletedTask; });
 
-        // A failed connection here means nothing else will work, so let it throw.
-        var cimv2 = WmiHelper.Connect(pc);
-        RemoteRegistry? registry = null;
-        Try(d, "Registry", () => registry = new RemoteRegistry(pc));
+        // AD and the registry connection don't need the WMI connection, so they start right away.
+        var pcOu = SyncSection(PcSection.PcOu, () =>
+        {
+            try { d.PcOu = ActiveDirectoryService.GetComputerOu(pc); }
+            catch (Exception ex) { d.PcOu = $"AD lookup failed: {ex.Message}"; }
+        });
+        var registryTask = Task.Run<RemoteRegistry?>(() =>
+        {
+            try { return new RemoteRegistry(pc); }
+            catch (Exception ex) { Warn(d, $"Registry: {ex.Message}"); return null; }
+        });
 
+        ManagementScope cimv2;
+        var connect = Stopwatch.StartNew();
         try
         {
-            Try(d, "System", () => ReadSystem(cimv2, registry, d));
-            Try(d, "CPU", () => ReadCpu(cimv2, d));
-            Try(d, "Memory", () => ReadMemory(cimv2, d));
-            Try(d, "Drives", () => ReadDrives(cimv2, d));
-            Try(d, "Network", () => ReadNetwork(cimv2, d));
-            Try(d, "Domain controller", () => ReadDomainController(cimv2, registry, d));
-            Try(d, "Logged in user", () => ReadLoggedInUser(cimv2, d));
-            Try(d, "Local groups", () => ReadGroups(pc, d));
-            Try(d, "Video card", () => ReadVideo(cimv2, d));
-            Try(d, "Monitors", () => ReadMonitors(pc, d));
-            Try(d, "Software", () => ReadSoftware(pc, registry, d));
-            Try(d, "Group Policy", () => ReadGpo(cimv2, registry, d));
-            Try(d, "Device Manager", () => ReadDeviceErrors(cimv2, d));
+            // A failed connection here means nothing else will work, so let it throw.
+            cimv2 = await Task.Run(() => WmiHelper.Connect(pc));
+        }
+        catch
+        {
+            (await registryTask)?.Dispose();
+            throw;
+        }
+        lock (d.Timings) d.Timings.Add(new SectionTiming(PcSection.Connect, connect.Elapsed));
+        sectionDone?.Report((d, PcSection.Connect));
+
+        // Shared by several sections: each class is queried once.
+        var computerSystem = Task.Run(() => WmiHelper.Query(cimv2, "SELECT Name, Manufacturer, Model, UserName FROM Win32_ComputerSystem").First());
+        var operatingSystem = Task.Run(() => WmiHelper.Query(cimv2,
+            "SELECT Caption, BuildNumber, LastBootUpTime, TotalVisibleMemorySize, FreePhysicalMemory FROM Win32_OperatingSystem").First());
+
+        // Win32_Process is only read if a section needs it (an RDP-only user, a GPO SID fallback or a software.json process entry).
+        var processes = new Lazy<RemoteProcessList>(
+            () => RemoteProcessList.Read(cimv2, SoftwareInventoryService.ProcessNames().Prepend(RemoteProcessList.Explorer)),
+            LazyThreadSafetyMode.ExecutionAndPublication);
+
+        // The PC's own name (e.g. when it was opened by IP or FQDN); local group members are reported under it.
+        async Task<string> ComputerName()
+        {
+            try { return (await computerSystem)["Name"]?.ToString() ?? pc; }
+            catch (Exception) { return pc; }
+        }
+
+        string? account = null; // DOMAIN\user of the logged-in user, for the Group Policy SID
+        try
+        {
+            var user = Section(PcSection.LoggedInUser, async () => account = ReadLoggedInUser(await computerSystem, processes, d));
+
+            await Task.WhenAll(
+                pcOu, user,
+                Section(PcSection.System, async () => ReadSystem(cimv2, await computerSystem, await operatingSystem, await registryTask, d)),
+                SyncSection(PcSection.Cpu, () => ReadCpu(cimv2, d)),
+                Section(PcSection.Memory, async () => ReadMemory(cimv2, await operatingSystem, d)),
+                SyncSection(PcSection.Drives, () => ReadDrives(cimv2, d)),
+                SyncSection(PcSection.Network, () => ReadNetwork(cimv2, d)),
+                Section(PcSection.DomainController, async () => ReadDomainController(cimv2, await registryTask, d)),
+                Section(PcSection.LocalGroups, async () => ReadGroups(pc, await ComputerName(), d)),
+                SyncSection(PcSection.Video, () => ReadVideo(cimv2, d)),
+                SyncSection(PcSection.Monitors, () => ReadMonitors(pc, d)),
+                Section(PcSection.Software, async () => ReadSoftware(pc, await registryTask, processes, d)),
+                Section(PcSection.GroupPolicy, async () =>
+                {
+                    await user; // needs the logged-in user
+                    ReadGpo(await registryTask, processes, account, await ComputerName(), d);
+                }),
+                SyncSection(PcSection.DeviceManager, () => ReadDeviceErrors(cimv2, d)));
         }
         finally
         {
-            registry?.Dispose();
+            (await registryTask)?.Dispose();
         }
 
+        d.TotalElapsed = total.Elapsed;
         return d;
-    });
+    }
 
     // ------------------------------------------------------------------ PC
 
-    private static void ReadSystem(ManagementScope cimv2, RemoteRegistry? registry, PcDetails d)
+    private static void ReadSystem(ManagementScope cimv2, ManagementBaseObject cs, ManagementBaseObject os, RemoteRegistry? registry, PcDetails d)
     {
-        var cs = WmiHelper.Query(cimv2, "SELECT Name, Manufacturer, Model FROM Win32_ComputerSystem").First();
         d.ComputerName = cs["Name"]?.ToString() ?? d.ComputerName;
         d.Model = $"{cs["Manufacturer"]} {cs["Model"]}".Trim();
 
-        var bios = WmiHelper.Query(cimv2, "SELECT SerialNumber FROM Win32_BIOS").FirstOrDefault();
-        d.SerialNumber = bios?["SerialNumber"]?.ToString()?.Trim() ?? "";
-
-        var os = WmiHelper.Query(cimv2, "SELECT Caption, BuildNumber, LastBootUpTime FROM Win32_OperatingSystem").First();
         if (os["LastBootUpTime"] is string boot) d.LastBoot = ManagementDateTimeConverter.ToDateTime(boot);
 
         // "Windows 11 Pro 25H2 (26200.6584)"
@@ -77,6 +160,10 @@ public static class PcInfoService
         // UAC = EnableLUA (missing value means the Windows default: enabled)
         var lua = registry?.GetDword(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System", "EnableLUA");
         d.Uac = registry is null ? "Unknown" : lua == 0 ? "Disabled" : "Enabled";
+
+        // Last so the rest of the PC card still fills in if the BIOS can't be read.
+        var bios = WmiHelper.Query(cimv2, "SELECT SerialNumber FROM Win32_BIOS").FirstOrDefault();
+        d.SerialNumber = bios?["SerialNumber"]?.ToString()?.Trim() ?? "";
     }
 
     private static void ReadDomainController(ManagementScope cimv2, RemoteRegistry? registry, PcDetails d)
@@ -123,9 +210,8 @@ public static class PcInfoService
         d.Processor = string.Join(", ", cpus.Select(p => p["Name"]?.ToString()?.Trim()).Distinct());
     }
 
-    private static void ReadMemory(ManagementScope cimv2, PcDetails d)
+    private static void ReadMemory(ManagementScope cimv2, ManagementBaseObject os, PcDetails d)
     {
-        var os = WmiHelper.Query(cimv2, "SELECT TotalVisibleMemorySize, FreePhysicalMemory FROM Win32_OperatingSystem").First();
         var totalKb = Convert.ToDouble(os["TotalVisibleMemorySize"]);
         var freeKb = Convert.ToDouble(os["FreePhysicalMemory"]);
         d.RamTotalGb = totalKb / 1024 / 1024;
@@ -178,7 +264,7 @@ public static class PcInfoService
         }
         catch (Exception ex)
         {
-            d.Warnings.Add($"{ex.Message} (no video cards were excluded)");
+            Warn(d, $"{ex.Message} (no video cards were excluded)");
         }
 
         foreach (var vc in WmiHelper.Query(cimv2, "SELECT Name FROM Win32_VideoController"))
@@ -237,40 +323,38 @@ public static class PcInfoService
 
     // ------------------------------------------------------------------ Users
 
-    private static void ReadLoggedInUser(ManagementScope cimv2, PcDetails d)
+    /// <summary>Fills the Users fields and returns the full DOMAIN\user name (null if nobody is logged in).</summary>
+    private static string? ReadLoggedInUser(ManagementBaseObject cs, Lazy<RemoteProcessList> processes, PcDetails d)
     {
         // Win32_ComputerSystem.UserName is the console user; it's empty for RDP-only sessions,
         // in which case the owner of explorer.exe is the remote user.
-        var user = WmiHelper.Query(cimv2, "SELECT UserName FROM Win32_ComputerSystem").First()["UserName"]?.ToString();
+        var account = cs["UserName"]?.ToString();
         var from = "Console";
 
-        if (string.IsNullOrEmpty(user))
+        if (string.IsNullOrEmpty(account))
         {
-            foreach (var proc in WmiHelper.Query(cimv2, "SELECT Handle FROM Win32_Process WHERE Name = 'explorer.exe'").Cast<ManagementObject>())
+            var owner = processes.Value.Get(RemoteProcessList.Explorer).FirstOrDefault(p => !string.IsNullOrEmpty(p.User));
+            if (owner is not null)
             {
-                var args = new object[2];
-                if (Convert.ToInt32(proc.InvokeMethod("GetOwner", args)) == 0 && args[0] is string owner)
-                {
-                    user = owner;
-                    from = "Remote (RDP)";
-                    break;
-                }
+                account = string.IsNullOrEmpty(owner.Domain) ? owner.User : $@"{owner.Domain}\{owner.User}";
+                from = "Remote (RDP)";
             }
         }
 
-        if (string.IsNullOrEmpty(user))
+        if (string.IsNullOrEmpty(account))
         {
             d.LoggedInUser = "No user logged in";
             d.LoggedInFrom = "-";
-            return;
+            return null;
         }
 
         // Omit the domain: "CORP\jdoe" -> "jdoe"
-        var sam = user.Contains('\\') ? user[(user.IndexOf('\\') + 1)..] : user;
+        var sam = WithoutDomain(account);
         d.LoggedInUser = sam;
         d.LoggedInFrom = from;
         try { d.LoggedInUserOu = ActiveDirectoryService.GetUserOu(sam); }
         catch (Exception ex) { d.LoggedInUserOu = $"AD lookup failed: {ex.Message}"; }
+        return account;
     }
 
     // ------------------------------------------------------------------ Group Policy
@@ -279,7 +363,7 @@ public static class PcInfoService
     private const string GpoCoreExtension = @"Extension-List\{00000000-0000-0000-0000-000000000000}";
 
     /// <summary>Last Group Policy refresh for the computer and the logged-in user, from HKLM\...\Group Policy\State.</summary>
-    private static void ReadGpo(ManagementScope cimv2, RemoteRegistry? registry, PcDetails d)
+    private static void ReadGpo(RemoteRegistry? registry, Lazy<RemoteProcessList> processes, string? account, string computerName, PcDetails d)
     {
         if (registry is null)
         {
@@ -289,14 +373,14 @@ public static class PcInfoService
 
         d.GpoSystem = ReadGpoTime(registry, "Machine");
 
-        if (d.LoggedInUser is "" or "No user logged in")
+        if (account is null)
         {
             d.GpoUser = GpoDate.Unknown("No user logged in");
             return;
         }
 
-        // Group Policy keeps user state under the user's SID; explorer.exe's owner gives us that SID.
-        var sid = FindUserSid(cimv2, d.LoggedInUser);
+        // Group Policy keeps user state under the user's SID.
+        var sid = TranslateSid(account, computerName) ?? FindUserSid(processes, d.LoggedInUser);
         d.GpoUser = sid is null
             ? GpoDate.Unknown($"Could not find the SID of {d.LoggedInUser}")
             : ReadGpoTime(registry, sid);
@@ -319,23 +403,41 @@ public static class PcInfoService
         return ft > 0 ? DateTime.FromFileTimeUtc(ft).ToLocalTime() : null;
     }
 
-    private static string? FindUserSid(ManagementScope cimv2, string sam)
+    /// <summary>
+    /// SID of a domain account, resolved from this machine (asks a DC, no round trip to the PC).
+    /// Null for local accounts on the PC or if the name can't be resolved.
+    /// </summary>
+    private static string? TranslateSid(string account, string computerName)
     {
-        foreach (var proc in WmiHelper.Query(cimv2, "SELECT Handle FROM Win32_Process WHERE Name = 'explorer.exe'").Cast<ManagementObject>())
+        var slash = account.IndexOf('\\');
+        if (slash <= 0 || account[..slash].Equals(computerName, StringComparison.OrdinalIgnoreCase))
+            return null;
+        try
         {
-            var owner = new object[2];
-            if (Convert.ToInt32(proc.InvokeMethod("GetOwner", owner)) != 0 ||
-                !string.Equals(owner[0] as string, sam, StringComparison.OrdinalIgnoreCase))
+            return new NTAccount(account).Translate(typeof(SecurityIdentifier)).Value;
+        }
+        catch (Exception)
+        {
+            return null; // IdentityNotMappedException, no DC reachable...
+        }
+    }
+
+    /// <summary>Fallback: the SID of the explorer.exe owned by <paramref name="sam"/> (works for local accounts too).</summary>
+    private static string? FindUserSid(Lazy<RemoteProcessList> processes, string sam)
+    {
+        foreach (var proc in processes.Value.Get(RemoteProcessList.Explorer))
+        {
+            if (!string.Equals(proc.User, sam, StringComparison.OrdinalIgnoreCase))
                 continue;
 
             var sid = new object[1];
-            if (Convert.ToInt32(proc.InvokeMethod("GetOwnerSid", sid)) == 0 && sid[0] is string s)
+            if (Convert.ToInt32(proc.Process.InvokeMethod("GetOwnerSid", sid)) == 0 && sid[0] is string s)
                 return s;
         }
         return null;
     }
 
-    private static void ReadGroups(string pc, PcDetails d)
+    private static void ReadGroups(string pc, string computerName, PcDetails d)
     {
         UserExclusions exclusions;
         try
@@ -344,17 +446,22 @@ public static class PcInfoService
         }
         catch (Exception ex)
         {
-            d.Warnings.Add($"{ex.Message} (nothing was excluded)");
+            Warn(d, $"{ex.Message} (nothing was excluded)");
             exclusions = UserExclusions.None;
         }
 
-        d.LocalAdmins = SafeGroup(() =>
-            Join(LocalGroupService.GetMembers(pc, "Administrators", d.ComputerName), exclusions.FilterLocalAdmins));
-        d.RemoteDesktopUsers = SafeGroup(() =>
-            Join(LocalGroupService.GetMembers(pc, "Remote Desktop Users", d.ComputerName), exclusions.FilterRemoteDesktopUsers));
-        d.DirectAccessUsers = SafeGroup(() =>
-            Join(LocalGroupService.GetMembers(pc, DirectAccessGroupName, d.ComputerName)
-                 ?? ActiveDirectoryService.GetGroupMembers(DirectAccessGroupName), exclusions.FilterDirectAccessUsers));
+        // The three groups are independent lookups, so they run at the same time.
+        var admins = Task.Run(() => SafeGroup(() =>
+            Join(LocalGroupService.GetMembers(pc, "Administrators", computerName), exclusions.FilterLocalAdmins)));
+        var rdp = Task.Run(() => SafeGroup(() =>
+            Join(LocalGroupService.GetMembers(pc, "Remote Desktop Users", computerName), exclusions.FilterRemoteDesktopUsers)));
+        var directAccess = Task.Run(() => SafeGroup(() =>
+            Join(LocalGroupService.GetMembers(pc, DirectAccessGroupName, computerName)
+                 ?? ActiveDirectoryService.GetGroupMembers(DirectAccessGroupName), exclusions.FilterDirectAccessUsers)));
+
+        d.LocalAdmins = admins.Result;
+        d.RemoteDesktopUsers = rdp.Result;
+        d.DirectAccessUsers = directAccess.Result;
     }
 
     /// <summary>
@@ -387,11 +494,11 @@ public static class PcInfoService
 
     // ------------------------------------------------------------------ Software
 
-    private static void ReadSoftware(string pc, RemoteRegistry? registry, PcDetails d)
+    private static void ReadSoftware(string pc, RemoteRegistry? registry, Lazy<RemoteProcessList> processes, PcDetails d)
     {
         try
         {
-            d.Software.AddRange(SoftwareInventoryService.Read(pc, registry));
+            d.Software.AddRange(SoftwareInventoryService.Read(pc, registry, processes));
         }
         catch (Exception ex)
         {
@@ -402,10 +509,10 @@ public static class PcInfoService
 
     // ------------------------------------------------------------------ helpers
 
-    private static void Try(PcDetails d, string section, Action action)
+    /// <summary>Sections run in parallel, so warnings are added under a lock.</summary>
+    private static void Warn(PcDetails d, string warning)
     {
-        try { action(); }
-        catch (Exception ex) { d.Warnings.Add($"{section}: {ex.Message}"); }
+        lock (d.Warnings) d.Warnings.Add(warning);
     }
 
     private static string DescribeError(int code) => code switch

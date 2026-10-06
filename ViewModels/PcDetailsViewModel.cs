@@ -26,6 +26,10 @@ public partial class PcDetailsViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool HasData { get; set; }
 
+    /// <summary>True until the WMI connection is up (or fails).</summary>
+    [ObservableProperty]
+    public partial bool IsConnecting { get; set; }
+
     [ObservableProperty]
     public partial string? ErrorMessage { get; set; }
 
@@ -44,44 +48,139 @@ public partial class PcDetailsViewModel : ViewModelBase
 
     public ObservableCollection<DeviceError> DeviceErrors { get; } = new();
     [ObservableProperty] public partial bool HasDeviceErrors { get; set; }
+    [ObservableProperty] public partial bool NoDeviceErrors { get; set; }
+
+    // ---- Each card fills in as soon as the sections it shows have finished.
+    [ObservableProperty] public partial bool UtilizationLoaded { get; set; }
+    [ObservableProperty] public partial bool SoftwareLoaded { get; set; }
+    [ObservableProperty] public partial bool PcLoaded { get; set; }
+    [ObservableProperty] public partial bool UsersLoaded { get; set; }
+    [ObservableProperty] public partial bool HardwareLoaded { get; set; }
+    [ObservableProperty] public partial bool DeviceManagerLoaded { get; set; }
 
     [ObservableProperty] public partial string? Warnings { get; set; }
+
+    /// <summary>"Loaded in 3.4 s", with the time of each section in <see cref="LoadTimeDetails"/>.</summary>
+    [ObservableProperty] public partial string? LoadTime { get; set; }
+    [ObservableProperty] public partial string? LoadTimeDetails { get; set; }
+
+    private readonly HashSet<string> _doneSections = new();
+    private int _run;
 
     private bool CanRefresh() => !IsLoading;
 
     [RelayCommand(CanExecute = nameof(CanRefresh))]
     public async Task RefreshAsync()
     {
+        var run = ++_run;
         IsLoading = true;
+        IsConnecting = true;
         ErrorMessage = null;
+        LoadTime = LoadTimeDetails = null;
+        ClearCards();
+
+        // Progress<T> runs the callback on the UI thread.
+        var progress = new Progress<(PcDetails Details, string Section)>(p =>
+        {
+            if (run != _run || ErrorMessage is not null) return; // from a failed or older refresh
+            _doneSections.Add(p.Section);
+            if (p.Section == PcSection.Connect)
+            {
+                IsConnecting = false;
+                HasData = true;
+            }
+            UpdateCards(p.Details, allDone: false);
+        });
+
         try
         {
-            var d = await PcInfoService.GetDetailsAsync(PcName);
+            var d = await PcInfoService.GetDetailsAsync(PcName, progress);
+            HasData = true;
+            UpdateCards(d, allDone: true);
 
+            LoadTime = $"Loaded in {d.TotalElapsed.TotalSeconds:0.0} s";
+            LoadTimeDetails = string.Join("\n", d.Timings
+                .OrderByDescending(t => t.Elapsed)
+                .Select(t => $"{t.Section}: {t.Elapsed.TotalSeconds:0.00} s"));
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Could not connect to {PcName}: {ex.Message}";
+            HasData = false;
+        }
+        finally
+        {
+            IsConnecting = false;
+            IsLoading = false;
+        }
+    }
+
+    private void ClearCards()
+    {
+        _doneSections.Clear();
+        UtilizationLoaded = SoftwareLoaded = PcLoaded = UsersLoaded = HardwareLoaded = DeviceManagerLoaded = false;
+        PcRows.Clear();
+        UserFields.Clear();
+        HardwareFields.Clear();
+        SoftwareRows.Clear();
+        DeviceErrors.Clear();
+        HasDeviceErrors = NoDeviceErrors = false;
+        Warnings = null;
+    }
+
+    /// <summary>
+    /// Builds each card once all the sections it reads have finished (a card never reads a field that
+    /// another section is still writing). <paramref name="allDone"/> builds whatever is left.
+    /// </summary>
+    private void UpdateCards(PcDetails d, bool allDone)
+    {
+        bool Ready(params string[] sections) => allDone || sections.All(_doneSections.Contains);
+
+        if (!UtilizationLoaded && Ready(PcSection.Cpu, PcSection.Memory, PcSection.Drives))
+        {
             CpuPercent = d.CpuPercent;
             RamPercent = d.RamPercent;
             RamText = $"{d.RamUsedGb:0.0} / {d.RamTotalGb:0.0} GB";
             DiskPercent = d.DiskPercent;
             DiskText = $"{d.DiskUsedGb:0} / {d.DiskTotalGb:0} GB  (C:)";
+            UtilizationLoaded = true;
+        }
 
-            Reset(PcRows, ToRows(BuildPc(d)));
-            Reset(UserFields, BuildUsers(d));
-            Reset(HardwareFields, BuildHardware(d));
+        if (!SoftwareLoaded && Ready(PcSection.Software, PcSection.GroupPolicy))
+        {
             Reset(SoftwareRows, ToRows(BuildSoftware(d)));
+            SoftwareLoaded = true;
+        }
+
+        if (!PcLoaded && Ready(PcSection.System, PcSection.Network, PcSection.DomainController, PcSection.PcOu))
+        {
+            Reset(PcRows, ToRows(BuildPc(d)));
+            PcLoaded = true;
+        }
+
+        if (!UsersLoaded && Ready(PcSection.LoggedInUser, PcSection.LocalGroups))
+        {
+            Reset(UserFields, BuildUsers(d));
+            UsersLoaded = true;
+        }
+
+        if (!HardwareLoaded && Ready(PcSection.Cpu, PcSection.Memory, PcSection.Network, PcSection.Video, PcSection.Monitors, PcSection.Drives))
+        {
+            Reset(HardwareFields, BuildHardware(d));
+            HardwareLoaded = true;
+        }
+
+        if (!DeviceManagerLoaded && Ready(PcSection.DeviceManager))
+        {
             Reset(DeviceErrors, d.DeviceErrors);
             HasDeviceErrors = DeviceErrors.Count > 0;
+            NoDeviceErrors = !HasDeviceErrors;
+            DeviceManagerLoaded = true;
+        }
 
-            Warnings = d.Warnings.Count > 0 ? "Some details could not be read:\n• " + string.Join("\n• ", d.Warnings) : null;
-            HasData = true;
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Could not connect to {PcName}: {ex.Message}";
-        }
-        finally
-        {
-            IsLoading = false;
-        }
+        List<string> warnings;
+        lock (d.Warnings) warnings = d.Warnings.ToList();
+        Warnings = warnings.Count > 0 ? "Some details could not be read:\n• " + string.Join("\n• ", warnings) : null;
     }
 
     // 2-column sections list their fields left-to-right, row by row (2 per row).

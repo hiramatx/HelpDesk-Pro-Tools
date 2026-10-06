@@ -86,7 +86,13 @@
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Spacing="2" VerticalAlignment="Center">
                     <TextBlock Text="PC Details" FontSize="22" FontWeight="Bold" />
-                    <TextBlock Text="{Binding PcName}" Classes="muted" FontSize="12" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding PcName}" Classes="muted" FontSize="12" />
+                        <!-- Hover for how long each section took -->
+                        <TextBlock Text="{Binding LoadTime}" Classes="muted" FontSize="12"
+                                   IsVisible="{Binding LoadTime, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                   ToolTip.Tip="{Binding LoadTimeDetails}" />
+                    </StackPanel>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                     <ProgressBar IsIndeterminate="True" Width="90" IsVisible="{Binding IsLoading}" />
@@ -103,7 +109,7 @@
                     <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource RedBrush}" TextWrapping="Wrap" />
                 </Border>
 
-                <Border Classes="card" IsVisible="{Binding IsLoading}">
+                <Border Classes="card" IsVisible="{Binding IsConnecting}">
                     <TextBlock Classes="muted" Text="Collecting details over WMI..." HorizontalAlignment="Center" Margin="0,20" />
                 </Border>
 
@@ -113,7 +119,8 @@
                     <Border Classes="card">
                         <StackPanel>
                             <TextBlock Classes="cardTitle" Text="Utilization" />
-                            <UniformGrid Columns="3" Margin="0,2">
+                            <TextBlock Classes="muted" Text="Loading..." Margin="4" IsVisible="{Binding !UtilizationLoaded}" />
+                            <UniformGrid Columns="3" Margin="0,2" IsVisible="{Binding UtilizationLoaded}">
                                 <StackPanel Spacing="6">
                                     <c:LiquidFillGauge Value="{Binding CpuPercent}" />
                                     <TextBlock Text="CPU Usage" HorizontalAlignment="Center" FontWeight="SemiBold" />
@@ -136,6 +143,7 @@
                     <Border Classes="card">
                         <StackPanel>
                             <TextBlock Classes="cardTitle" Text="Software" />
+                            <TextBlock Classes="muted" Text="Loading..." Margin="4" IsVisible="{Binding !SoftwareLoaded}" />
                             <ItemsControl ItemsSource="{Binding SoftwareRows}"
                                           ItemTemplate="{StaticResource RowTemplate}" />
                         </StackPanel>
@@ -145,6 +153,7 @@
                     <Border Classes="card">
                         <StackPanel>
                             <TextBlock Classes="cardTitle" Text="PC" />
+                            <TextBlock Classes="muted" Text="Loading..." Margin="4" IsVisible="{Binding !PcLoaded}" />
                             <ItemsControl ItemsSource="{Binding PcRows}"
                                           ItemTemplate="{StaticResource RowTemplate}" />
                         </StackPanel>
@@ -154,6 +163,7 @@
                     <Border Classes="card">
                         <StackPanel>
                             <TextBlock Classes="cardTitle" Text="Users" />
+                            <TextBlock Classes="muted" Text="Loading..." Margin="4" IsVisible="{Binding !UsersLoaded}" />
                             <ItemsControl ItemsSource="{Binding UserFields}"
                                           ItemTemplate="{StaticResource WideFieldTemplate}" />
                         </StackPanel>
@@ -163,6 +173,7 @@
                     <Border Classes="card">
                         <StackPanel>
                             <TextBlock Classes="cardTitle" Text="Hardware" />
+                            <TextBlock Classes="muted" Text="Loading..." Margin="4" IsVisible="{Binding !HardwareLoaded}" />
                             <ItemsControl ItemsSource="{Binding HardwareFields}"
                                           ItemTemplate="{StaticResource WideFieldTemplate}" />
                         </StackPanel>
@@ -172,7 +183,8 @@
                     <Border Classes="card">
                         <StackPanel>
                             <TextBlock Classes="cardTitle" Text="Device Manager Errors" />
-                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="4" IsVisible="{Binding !HasDeviceErrors}">
+                            <TextBlock Classes="muted" Text="Loading..." Margin="4" IsVisible="{Binding !DeviceManagerLoaded}" />
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="4" IsVisible="{Binding NoDeviceErrors}">
                                 <Ellipse Width="10" Height="10" Fill="{StaticResource GreenBrush}" VerticalAlignment="Center" />
                                 <TextBlock Text="No device errors found" />
                             </StackPanel>

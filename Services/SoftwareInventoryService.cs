@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Management;
 using System.Text;
 using System.Text.RegularExpressions;
 using HelpDesk_Pro_Tools.Models;
@@ -26,7 +25,23 @@ public static class SoftwareInventoryService
         @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
     };
 
-    public static List<SoftwareResult> Read(string pc, RemoteRegistry? registry)
+    /// <summary>The process names of the catalog's "process" entries (empty if software.json can't be read).</summary>
+    public static IEnumerable<string> ProcessNames()
+    {
+        try
+        {
+            return (ConfigFiles.Load<SoftwareCatalog>(CatalogFile)?.Software ?? new())
+                .Where(e => !string.IsNullOrWhiteSpace(e.Name) && !string.IsNullOrWhiteSpace(e.Process))
+                .Select(e => e.Process!.Trim())
+                .ToList();
+        }
+        catch (Exception)
+        {
+            return Array.Empty<string>(); // Read reports the problem in the Software card
+        }
+    }
+
+    public static List<SoftwareResult> Read(string pc, RemoteRegistry? registry, Lazy<RemoteProcessList> processes)
     {
         var catalog = ConfigFiles.Load<SoftwareCatalog>(CatalogFile)
                       ?? throw new FileNotFoundException($"{CatalogFile} not found in {ConfigFiles.Folder}");
@@ -46,7 +61,6 @@ public static class SoftwareInventoryService
         }
 
         var uninstall = new Lazy<List<(string Name, string Key)>>(() => ReadUninstallNames(registry));
-        var cimv2 = new Lazy<ManagementScope>(() => WmiHelper.Connect(pc));
         var results = new List<SoftwareResult>();
 
         foreach (var entry in catalog.Software.Where(e => !string.IsNullOrWhiteSpace(e.Name)))
@@ -58,7 +72,7 @@ public static class SoftwareInventoryService
             {
                 result = string.IsNullOrWhiteSpace(entry.Process)
                     ? Evaluate(name, entry, Find(pc, registry, entry, uninstall), baselines, baselineError)
-                    : ReadProcess(name, entry.Process.Trim(), cimv2.Value);
+                    : ReadProcess(name, entry.Process.Trim(), processes.Value);
             }
             catch (Exception ex)
             {
@@ -73,19 +87,15 @@ public static class SoftwareInventoryService
     // ------------------------------------------------------------------ process check
 
     /// <summary>"Running / user1, user2" (green) if the process is running, otherwise "NA / NA" (red).</summary>
-    private static SoftwareResult ReadProcess(string name, string processName, ManagementScope cimv2)
+    private static SoftwareResult ReadProcess(string name, string processName, RemoteProcessList processes)
     {
-        var wqlName = processName.Replace("\\", "\\\\").Replace("'", "\\'");
-        var users = new List<string>();
-        var count = 0;
-
-        foreach (var proc in WmiHelper.Query(cimv2, $"SELECT Handle FROM Win32_Process WHERE Name = '{wqlName}'").Cast<ManagementObject>())
-        {
-            count++;
-            var args = new object[2];
-            if (Convert.ToInt32(proc.InvokeMethod("GetOwner", args)) == 0 && args[0] is string owner && owner.Length > 0)
-                users.Add(owner); // user name without the domain, like the Users card
-        }
+        var running = processes.Get(processName);
+        var count = running.Count;
+        var users = running
+            .Select(p => p.User)
+            .Where(u => !string.IsNullOrEmpty(u))
+            .Select(u => u!) // user name without the domain, like the Users card
+            .ToList();
 
         if (count == 0)
             return new SoftwareResult(name, "NA / NA", FieldStatus.Bad, $"{processName} is not running");
