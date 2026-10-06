@@ -12,7 +12,10 @@ public partial class PcDetailsWindow : Window
         Opened += (_, _) => FitToScreen();
     }
 
-    /// <summary>Shrinks the window if it's taller than the monitor's working area, and keeps it on screen.</summary>
+    /// <summary>
+    /// Anchors the window to the top-left (0,0) of the working area of the monitor it opened on
+    /// (the main window's monitor), shrinking it if it's taller than that working area.
+    /// </summary>
     private void FitToScreen()
     {
         if ((Screens.ScreenFromWindow(this) ?? Screens.Primary) is not { } screen) return;
@@ -24,8 +27,6 @@ public partial class PcDetailsWindow : Window
 
         if (Height > available) Height = Math.Max(MinHeight, available);
 
-        var totalPx = (int)Math.Round((Height + frame) * scale);
-        var y = Math.Clamp(Position.Y, work.Y, Math.Max(work.Y, work.Bottom - totalPx));
-        Position = new PixelPoint(Position.X, y);
+        Position = work.TopLeft;
     }
 }

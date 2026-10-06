@@ -35,7 +35,7 @@ The main window opens as tall as the monitor's usable area (screen minus taskbar
 | C Share | Two file windows for moving files between the tech's PC and the target: the tech's own profile on this PC (`C:\Users\<you without -admin>`) and `\\PC\c$`. Both use the account the app runs as. When the app is started with "Run as different user", they open in an in-app file window, because Windows always runs File Explorer as the logged-on desktop user |
 | Remote Assist / Remote Admin / Computer Mgmt | `msra /offerra`, `mstsc /admin`, `compmgmt.msc /computer:` |
 
-**PC Details** (WMI via `System.Management`, remote registry via WMI `StdRegProv`, the `c$` share and AD via `System.DirectoryServices`):
+**PC Details** opens at the top-left corner of the screen the main window is on. Data comes from WMI via `System.Management`, remote registry via WMI `StdRegProv`, the `c$` share and AD via `System.DirectoryServices`:
 
 | Section | Fields |
 |---|---|
