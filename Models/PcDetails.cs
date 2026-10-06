@@ -46,10 +46,20 @@ public class PcDetails
     // ---- Software (from Config\software.json)
     public List<SoftwareResult> Software { get; } = new();
 
+    /// <summary>When Group Policy last finished applying for the computer / the logged-in user (local time).</summary>
+    public GpoDate GpoSystem { get; set; } = GpoDate.Unknown("Not read");
+    public GpoDate GpoUser { get; set; } = GpoDate.Unknown("Not read");
+
     public List<DeviceError> DeviceErrors { get; } = new();
 
     /// <summary>Non-fatal problems hit while collecting data (one per failed section).</summary>
     public List<string> Warnings { get; } = new();
+}
+
+/// <summary>A Group Policy refresh time, or the reason there isn't one.</summary>
+public record GpoDate(DateTime? When, string? Problem)
+{
+    public static GpoDate Unknown(string problem) => new(null, problem);
 }
 
 public record MonitorInfo(string Name, string Resolution);

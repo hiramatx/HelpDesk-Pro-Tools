@@ -94,7 +94,7 @@ public partial class PcDetailsViewModel : ViewModelBase
         yield return new("Serial No.", d.SerialNumber);
         yield return new("UAC/LUA", d.Uac);
         yield return new("DC", d.DomainController);
-        yield return new("IP Address", d.IpAddress);
+        yield return BuildIpAddress(d.IpAddress);
         yield return new("Network Speed", d.NetworkSpeed);
         yield return new("Last Boot Time", d.LastBoot?.ToString("g") ?? "");
         yield return BuildUptime(d.LastBoot);
@@ -118,6 +118,20 @@ public partial class PcDetailsViewModel : ViewModelBase
             _ => (FieldStatus.Ok, $"Restarted within the last {UptimeCautionHours:0} hours"),
         };
         return new InfoField("Uptime", FormatUptime(uptime)) { Status = status, ToolTip = tip };
+    }
+
+    // IP: orange on the 105.195.x.x range, green otherwise.
+    private const string OrangeIpPrefix = "105.195.";
+
+    private static InfoField BuildIpAddress(string ipText)
+    {
+        var ips = ipText.Split(", ", StringSplitOptions.RemoveEmptyEntries)
+            .Where(ip => System.Net.IPAddress.TryParse(ip, out _))
+            .ToList();
+        if (ips.Count == 0) return new InfoField("IP Address", ipText);
+
+        var status = ips.Any(ip => ip.StartsWith(OrangeIpPrefix, StringComparison.Ordinal)) ? FieldStatus.Warn : FieldStatus.Ok;
+        return new InfoField("IP Address", ipText) { Status = status };
     }
 
     private static IEnumerable<InfoField> BuildUsers(PcDetails d)
@@ -160,13 +174,35 @@ public partial class PcDetailsViewModel : ViewModelBase
     private static IEnumerable<InfoField> BuildSoftware(PcDetails d)
     {
         if (d.Software.Count == 0)
-        {
             yield return new InfoField("Software", "None configured - add programs to Config\\software.json");
-            yield break;
-        }
 
         foreach (var s in d.Software)
             yield return new InfoField(s.Label, s.Value) { Status = s.Status, ToolTip = s.ToolTip };
+
+        yield return BuildGpo("GPO System Date", d.GpoSystem);
+        yield return BuildGpo("GPO User Date", d.GpoUser);
+    }
+
+    // GPO dates: green if Group Policy applied within the last 7 days (today included), red otherwise.
+    private const int GpoFreshDays = 7;
+
+    private static InfoField BuildGpo(string label, GpoDate gpo)
+    {
+        if (gpo.When is not { } when)
+        {
+            // No user logged in isn't a problem, so it stays in normal text.
+            var status = gpo.Problem == "No user logged in" ? FieldStatus.Normal : FieldStatus.Bad;
+            return new InfoField(label, gpo.Problem ?? "Unknown") { Status = status };
+        }
+
+        var fresh = when.Date >= DateTime.Today.AddDays(-(GpoFreshDays - 1));
+        return new InfoField(label, when.ToString("g"))
+        {
+            Status = fresh ? FieldStatus.Ok : FieldStatus.Bad,
+            ToolTip = fresh
+                ? $"Group Policy applied within the last {GpoFreshDays} days"
+                : $"Group Policy has not applied in the last {GpoFreshDays} days - try gpupdate /force",
+        };
     }
 
     /// <summary>"Video Card 1", "Video Card 2"...</summary>
