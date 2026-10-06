@@ -5,12 +5,14 @@ namespace HelpDesk_Pro_Tools.Services;
 
 /// <summary>
 /// Reads HKLM on a remote PC through WMI's StdRegProv, so it works without the
-/// Remote Registry service being started.
+/// Remote Registry service being started. Calls are serialized so PC Details sections running
+/// in parallel can share one instance.
 /// </summary>
 public sealed class RemoteRegistry : IDisposable
 {
     private const uint HKLM = 0x80000002;
     private readonly ManagementClass _reg;
+    private readonly object _lock = new();
 
     public RemoteRegistry(string pc)
     {
@@ -31,6 +33,11 @@ public sealed class RemoteRegistry : IDisposable
 
     /// <summary>Names of the subkeys under <paramref name="key"/> (empty if the key doesn't exist).</summary>
     public string[] GetSubKeyNames(string key)
+    {
+        lock (_lock) return EnumKey(key);
+    }
+
+    private string[] EnumKey(string key)
     {
         using var inParams = _reg.GetMethodParameters("EnumKey");
         inParams["hDefKey"] = HKLM;
@@ -55,6 +62,11 @@ public sealed class RemoteRegistry : IDisposable
 
     /// <summary>Returns the out-parameters, or null when the key / value doesn't exist.</summary>
     private ManagementBaseObject? Invoke(string method, string key, string valueName)
+    {
+        lock (_lock) return InvokeLocked(method, key, valueName);
+    }
+
+    private ManagementBaseObject? InvokeLocked(string method, string key, string valueName)
     {
         using var inParams = _reg.GetMethodParameters(method);
         inParams["hDefKey"] = HKLM;

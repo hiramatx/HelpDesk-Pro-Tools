@@ -54,7 +54,15 @@ public class PcDetails
 
     /// <summary>Non-fatal problems hit while collecting data (one per failed section).</summary>
     public List<string> Warnings { get; } = new();
+
+    /// <summary>How long each section took, in the order they finished (sections run in parallel).</summary>
+    public List<SectionTiming> Timings { get; } = new();
+
+    /// <summary>Wall-clock time for the whole collection.</summary>
+    public TimeSpan TotalElapsed { get; set; }
 }
+
+public record SectionTiming(string Section, TimeSpan Elapsed);
 
 /// <summary>A Group Policy refresh time, or the reason there isn't one.</summary>
 public record GpoDate(DateTime? When, string? Problem)
