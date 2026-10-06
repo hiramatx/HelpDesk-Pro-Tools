@@ -37,6 +37,8 @@ jobs:
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) { Write-Host "$tag is already released"; exit 0 }
           "tag=$tag" >> $env:GITHUB_OUTPUT
+          # gh's "not found" exit code would otherwise fail the step.
+          exit 0
 
       - name: Publish self-contained
         if: steps.release.outputs.tag != ''
