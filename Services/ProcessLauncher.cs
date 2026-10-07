@@ -36,6 +36,60 @@ public static class ProcessLauncher
         }
     }
 
+    /// <summary>
+    /// Opens Windows Terminal, or a PowerShell console when Terminal isn't available to this account.
+    /// </summary>
+    /// <remarks>
+    /// wt.exe is not a normal program on PATH: it is a per-user App Execution Alias that Windows creates
+    /// in %LOCALAPPDATA%\Microsoft\WindowsApps only for accounts that have the Windows Terminal package
+    /// registered. When the app runs as a different user (the usual "-admin" account), that account often
+    /// never had Terminal provisioned, or the alias is turned off in Settings, so starting "wt.exe" fails
+    /// with "The system cannot find the file specified". Look for the alias first and fall back to PowerShell.
+    /// </remarks>
+    public static void LaunchTerminal()
+    {
+        var wt = FindWindowsTerminal();
+        if (wt is not null)
+        {
+            try
+            {
+                Launch(wt);
+                return;
+            }
+            catch (Win32Exception)
+            {
+                // Alias present but its package isn't usable by this account; use PowerShell instead.
+            }
+        }
+
+        LaunchPowerShell("-NoLogo");
+    }
+
+    /// <summary>Full path of wt.exe for the account this app runs as, or null if it has none.</summary>
+    private static string? FindWindowsTerminal()
+    {
+        var alias = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            @"Microsoft\WindowsApps\wt.exe");
+        if (File.Exists(alias)) return alias;
+
+        foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator))
+        {
+            if (string.IsNullOrWhiteSpace(dir)) continue;
+            try
+            {
+                var candidate = Path.Combine(dir.Trim().Trim('"'), "wt.exe");
+                if (File.Exists(candidate)) return candidate;
+            }
+            catch (ArgumentException)
+            {
+                // Malformed PATH entry.
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>Runs a Scripts-tab .ps1 in Windows PowerShell 5.1 (powershell.exe), in its own console.</summary>
     public static void LaunchScript(string scriptPath, string? extraArgs)
     {

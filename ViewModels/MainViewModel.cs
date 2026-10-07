@@ -234,7 +234,7 @@ public partial class MainViewModel : ViewModelBase
     private Task AdConsole() => LaunchLocal(() => ProcessLauncher.LaunchMmc("dsa.msc"));
 
     [RelayCommand]
-    private Task WindowsTerminal() => LaunchLocal(() => ProcessLauncher.Launch("wt.exe"));
+    private Task WindowsTerminal() => LaunchLocal(() => ProcessLauncher.LaunchTerminal());
 
     private async Task LaunchLocal(Action start)
     {
