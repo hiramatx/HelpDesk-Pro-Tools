@@ -98,7 +98,7 @@ public static class PcInfoService
         // Shared by several sections: each class is queried once.
         var computerSystem = Task.Run(() => WmiHelper.Query(cimv2, "SELECT Name, Manufacturer, Model, UserName FROM Win32_ComputerSystem").First());
         var operatingSystem = Task.Run(() => WmiHelper.Query(cimv2,
-            "SELECT Caption, BuildNumber, LastBootUpTime, TotalVisibleMemorySize, FreePhysicalMemory FROM Win32_OperatingSystem").First());
+            "SELECT Caption, BuildNumber, LastBootUpTime, InstallDate, TotalVisibleMemorySize, FreePhysicalMemory FROM Win32_OperatingSystem").First());
 
         // Win32_Process is only read if a section needs it (an RDP-only user, a GPO SID fallback or a software.json process entry).
         var processes = new Lazy<RemoteProcessList>(
@@ -153,6 +153,7 @@ public static class PcInfoService
         d.Model = $"{cs["Manufacturer"]} {cs["Model"]}".Trim();
 
         if (os["LastBootUpTime"] is string boot) d.LastBoot = ManagementDateTimeConverter.ToDateTime(boot);
+        if (os["InstallDate"] is string installed) d.InstallDate = ManagementDateTimeConverter.ToDateTime(installed);
 
         // "Windows 11 Pro 25H2 (26200.6584)"
         var caption = os["Caption"]?.ToString()?.Replace("Microsoft ", "").Trim() ?? "";
