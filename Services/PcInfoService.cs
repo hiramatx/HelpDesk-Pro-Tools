@@ -43,19 +43,26 @@ public static class PcInfoService
     /// total wait is roughly the slowest section instead of the sum of all of them.
     /// <paramref name="sectionDone"/> receives the details and a <see cref="PcSection"/> name each time a
     /// section finishes; only the fields of finished sections are safe to read before the task completes.
+    /// <paramref name="trace"/> records how long each section and each WMI query / registry read in it took.
     /// </summary>
-    public static async Task<PcDetails> GetDetailsAsync(string pc, IProgress<(PcDetails Details, string Section)>? sectionDone = null)
+    public static async Task<PcDetails> GetDetailsAsync(string pc, IProgress<(PcDetails Details, string Section)>? sectionDone = null,
+        LoadTrace? trace = null)
     {
         var d = new PcDetails { ComputerName = pc };
         var total = Stopwatch.StartNew();
+        trace?.Attach();
 
         Task Section(string name, Func<Task> read) => Task.Run(async () =>
         {
+            LoadTrace.EnterSection(name);
+            var start = LoadTrace.Elapsed;
             var sw = Stopwatch.StartNew();
+            string? error = null;
             try { await read(); }
-            catch (Exception ex) { Warn(d, $"{name}: {ex.Message}"); }
+            catch (Exception ex) { error = ex.Message; Warn(d, $"{name}: {ex.Message}"); }
             finally
             {
+                LoadTrace.SectionDone(name, start, error);
                 lock (d.Timings) d.Timings.Add(new SectionTiming(name, sw.Elapsed));
                 sectionDone?.Report((d, name));
             }
@@ -65,11 +72,13 @@ public static class PcInfoService
         // AD and the registry connection don't need the WMI connection, so they start right away.
         var pcOu = SyncSection(PcSection.PcOu, () =>
         {
-            try { d.PcOu = ActiveDirectoryService.GetComputerOu(pc); }
+            try { d.PcOu = LoadTrace.Step("AD lookup of the computer", () => ActiveDirectoryService.GetComputerOu(pc)); }
             catch (Exception ex) { d.PcOu = $"AD lookup failed: {ex.Message}"; }
         });
         var registryTask = Task.Run<RemoteRegistry?>(() =>
         {
+            LoadTrace.EnterSection("Registry connect");
+            var start = LoadTrace.Elapsed;
             var sw = Stopwatch.StartNew();
             try
             {
@@ -78,6 +87,7 @@ public static class PcInfoService
                 return registry;
             }
             catch (Exception ex) { Warn(d, $"Registry: {ex.Message}"); return null; }
+            finally { LoadTrace.SectionDone("Registry connect", start, null); }
         });
 
         ManagementScope cimv2;
@@ -85,7 +95,11 @@ public static class PcInfoService
         try
         {
             // A failed connection here means nothing else will work, so let it throw.
-            cimv2 = await Task.Run(() => WmiHelper.Connect(pc));
+            cimv2 = await Task.Run(() =>
+            {
+                LoadTrace.EnterSection(PcSection.Connect);
+                return WmiHelper.Connect(pc);
+            });
         }
         catch
         {
@@ -119,12 +133,16 @@ public static class PcInfoService
 
             await Task.WhenAll(
                 pcOu, user,
-                Section(PcSection.System, async () => ReadSystem(cimv2, await computerSystem, await operatingSystem, await registryTask, d)),
+                Section(PcSection.System, async () => ReadSystem(cimv2,
+                    await LoadTrace.WaitAsync("Win32_ComputerSystem", computerSystem),
+                    await LoadTrace.WaitAsync("Win32_OperatingSystem", operatingSystem),
+                    await LoadTrace.WaitAsync("registry connection", registryTask), d)),
                 SyncSection(PcSection.Cpu, () => ReadCpu(cimv2, d)),
                 Section(PcSection.Memory, async () => ReadMemory(cimv2, await operatingSystem, d)),
                 SyncSection(PcSection.Drives, () => ReadDrives(cimv2, d)),
                 SyncSection(PcSection.Network, () => ReadNetwork(cimv2, d)),
-                Section(PcSection.DomainController, async () => ReadDomainController(cimv2, await registryTask, d)),
+                Section(PcSection.DomainController, async () =>
+                    ReadDomainController(cimv2, await LoadTrace.WaitAsync("registry connection", registryTask), d)),
                 Section(PcSection.LocalGroups, async () => ReadGroups(pc, await ComputerName(), d)),
                 SyncSection(PcSection.Video, () => ReadVideo(cimv2, d)),
                 SyncSection(PcSection.Monitors, () => ReadMonitors(pc, d)),
@@ -359,7 +377,7 @@ public static class PcInfoService
         var sam = WithoutDomain(account);
         d.LoggedInUser = sam;
         d.LoggedInFrom = from;
-        try { d.LoggedInUserOu = ActiveDirectoryService.GetUserOu(sam); }
+        try { d.LoggedInUserOu = LoadTrace.Step("AD lookup of the user", () => ActiveDirectoryService.GetUserOu(sam)); }
         catch (Exception ex) { d.LoggedInUserOu = $"AD lookup failed: {ex.Message}"; }
         return account;
     }
@@ -421,7 +439,7 @@ public static class PcInfoService
             return null;
         try
         {
-            return new NTAccount(account).Translate(typeof(SecurityIdentifier)).Value;
+            return LoadTrace.Step("SID lookup", () => new NTAccount(account).Translate(typeof(SecurityIdentifier)).Value);
         }
         catch (Exception)
         {
@@ -459,12 +477,13 @@ public static class PcInfoService
 
         // The three groups are independent lookups, so they run at the same time.
         var admins = Task.Run(() => SafeGroup(() =>
-            Join(LocalGroupService.GetMembers(pc, "Administrators", computerName), exclusions.FilterLocalAdmins)));
+            Join(LoadTrace.Step("Administrators members", () => LocalGroupService.GetMembers(pc, "Administrators", computerName)), exclusions.FilterLocalAdmins)));
         var rdp = Task.Run(() => SafeGroup(() =>
-            Join(LocalGroupService.GetMembers(pc, "Remote Desktop Users", computerName), exclusions.FilterRemoteDesktopUsers)));
+            Join(LoadTrace.Step("Remote Desktop Users members", () => LocalGroupService.GetMembers(pc, "Remote Desktop Users", computerName)), exclusions.FilterRemoteDesktopUsers)));
         var directAccess = Task.Run(() => SafeGroup(() =>
-            Join(LocalGroupService.GetMembers(pc, DirectAccessGroupName, computerName)
-                 ?? ActiveDirectoryService.GetGroupMembers(DirectAccessGroupName), exclusions.FilterDirectAccessUsers)));
+            Join(LoadTrace.Step($"{DirectAccessGroupName} members", () => LocalGroupService.GetMembers(pc, DirectAccessGroupName, computerName))
+                 ?? LoadTrace.Step($"{DirectAccessGroupName} members (AD)", () => ActiveDirectoryService.GetGroupMembers(DirectAccessGroupName)),
+                exclusions.FilterDirectAccessUsers)));
 
         d.LocalAdmins = admins.Result;
         d.RemoteDesktopUsers = rdp.Result;

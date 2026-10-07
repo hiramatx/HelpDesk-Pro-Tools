@@ -16,11 +16,14 @@ public static class WmiHelper
             Timeout = TimeSpan.FromSeconds(20),
         };
         var scope = new ManagementScope($@"\\{pc}\{wmiNamespace}", options);
-        scope.Connect();
+        LoadTrace.Step($@"WMI connect {wmiNamespace}", scope.Connect);
         return scope;
     }
 
-    public static List<ManagementBaseObject> Query(ManagementScope scope, string wql)
+    public static List<ManagementBaseObject> Query(ManagementScope scope, string wql) =>
+        LoadTrace.Step($"WMI query {Describe(wql)}", () => Run(scope, wql));
+
+    private static List<ManagementBaseObject> Run(ManagementScope scope, string wql)
     {
         var options = new EnumerationOptions { Timeout = TimeSpan.FromSeconds(30), ReturnImmediately = false };
         using var searcher = new ManagementObjectSearcher(scope, new ObjectQuery(wql), options);
@@ -28,5 +31,12 @@ public static class WmiHelper
         foreach (var obj in searcher.Get())
             results.Add(obj);
         return results;
+    }
+
+    // "SELECT Name FROM Win32_BIOS WHERE ..." -> "Win32_BIOS WHERE ..." (the class is what the log needs).
+    private static string Describe(string wql)
+    {
+        var from = wql.IndexOf(" FROM ", StringComparison.OrdinalIgnoreCase);
+        return from < 0 ? wql : wql[(from + 6)..];
     }
 }

@@ -66,6 +66,8 @@ public partial class PcDetailsViewModel : ViewModelBase
 
     private readonly HashSet<string> _doneSections = new();
     private int _run;
+    private LoadTrace? _trace; // the current refresh's timings, written to LoadTrace.LogPath when it ends
+    private string? _lastSection; // the section whose arrival is being shown, for the log
 
     private bool CanRefresh() => !IsLoading;
 
@@ -78,12 +80,15 @@ public partial class PcDetailsViewModel : ViewModelBase
         ErrorMessage = null;
         LoadTime = LoadTimeDetails = null;
         ClearCards();
+        var trace = _trace = new LoadTrace(PcName);
+        string? failure = null;
 
         // Progress<T> runs the callback on the UI thread.
         var progress = new Progress<(PcDetails Details, string Section)>(p =>
         {
             if (run != _run || ErrorMessage is not null) return; // from a failed or older refresh
             _doneSections.Add(p.Section);
+            _lastSection = p.Section;
             if (p.Section == PcSection.Connect)
             {
                 IsConnecting = false;
@@ -94,22 +99,26 @@ public partial class PcDetailsViewModel : ViewModelBase
 
         try
         {
-            var d = await PcInfoService.GetDetailsAsync(PcName, progress);
+            var d = await PcInfoService.GetDetailsAsync(PcName, progress, trace);
             HasData = true;
+            _lastSection = null;
             UpdateCards(d, allDone: true);
 
             LoadTime = $"Loaded in {d.TotalElapsed.TotalSeconds:0.0} s";
             LoadTimeDetails = string.Join("\n", d.Timings
                 .OrderByDescending(t => t.Elapsed)
-                .Select(t => $"{t.Section}: {t.Elapsed.TotalSeconds:0.00} s"));
+                .Select(t => $"{t.Section}: {t.Elapsed.TotalSeconds:0.00} s")
+                .Append($"\nEach step is logged in {LoadTrace.LogPath}"));
         }
         catch (Exception ex)
         {
+            failure = ex.Message;
             ErrorMessage = $"Could not connect to {PcName}: {ex.Message}";
             HasData = false;
         }
         finally
         {
+            trace.Write(failure);
             IsConnecting = false;
             IsLoading = false;
         }
@@ -144,30 +153,35 @@ public partial class PcDetailsViewModel : ViewModelBase
             DiskPercent = d.DiskPercent;
             DiskText = $"{d.DiskUsedGb:0} / {d.DiskTotalGb:0} GB  (C:)";
             UtilizationLoaded = true;
+            CardShown("Utilization");
         }
 
         if (!SoftwareLoaded && Ready(PcSection.Software, PcSection.GroupPolicy))
         {
             Reset(SoftwareRows, ToRows(BuildSoftware(d)));
             SoftwareLoaded = true;
+            CardShown("Software");
         }
 
         if (!PcLoaded && Ready(PcSection.System, PcSection.Network, PcSection.DomainController, PcSection.PcOu))
         {
             Reset(PcRows, ToRows(BuildPc(d)));
             PcLoaded = true;
+            CardShown("PC");
         }
 
         if (!UsersLoaded && Ready(PcSection.LoggedInUser, PcSection.LocalGroups))
         {
             Reset(UserFields, BuildUsers(d));
             UsersLoaded = true;
+            CardShown("Users");
         }
 
         if (!HardwareLoaded && Ready(PcSection.Cpu, PcSection.Memory, PcSection.Network, PcSection.Video, PcSection.Monitors, PcSection.Drives))
         {
             Reset(HardwareFields, BuildHardware(d));
             HardwareLoaded = true;
+            CardShown("Hardware");
         }
 
         if (!DeviceManagerLoaded && Ready(PcSection.DeviceManager))
@@ -176,12 +190,17 @@ public partial class PcDetailsViewModel : ViewModelBase
             HasDeviceErrors = DeviceErrors.Count > 0;
             NoDeviceErrors = !HasDeviceErrors;
             DeviceManagerLoaded = true;
+            CardShown("Device Manager");
         }
 
         List<string> warnings;
         lock (d.Warnings) warnings = d.Warnings.ToList();
         Warnings = warnings.Count > 0 ? "Some details could not be read:\n• " + string.Join("\n• ", warnings) : null;
     }
+
+    // The section that just arrived is the one the card was waiting on last: the card's bottleneck.
+    private void CardShown(string card) =>
+        _trace?.Mark(_lastSection is null ? $"{card} card shown (load finished)" : $"{card} card shown, last waited on {_lastSection}");
 
     // 2-column sections list their fields left-to-right, row by row (2 per row).
 

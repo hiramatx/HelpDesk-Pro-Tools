@@ -23,7 +23,7 @@ public sealed class RemoteRegistry : IDisposable
 
     public RemoteRegistry(string pc)
     {
-        _native = TryOpenNative(pc);
+        _native = LoadTrace.Step("open Remote Registry service", () => TryOpenNative(pc));
         if (_native is null)
             _wmi = new ManagementClass(WmiHelper.Connect(pc, @"root\default"), new ManagementPath("StdRegProv"), null);
     }
@@ -52,7 +52,10 @@ public sealed class RemoteRegistry : IDisposable
         return null;
     }
 
-    public string? GetString(string key, string valueName)
+    public string? GetString(string key, string valueName) =>
+        LoadTrace.Count("registry reads", () => ReadString(key, valueName));
+
+    private string? ReadString(string key, string valueName)
     {
         if (_native is not null)
             return ReadNative(key, valueName) as string;
@@ -61,7 +64,10 @@ public sealed class RemoteRegistry : IDisposable
         return result is null ? null : result["sValue"] as string;
     }
 
-    public uint? GetDword(string key, string valueName)
+    public uint? GetDword(string key, string valueName) =>
+        LoadTrace.Count("registry reads", () => ReadDword(key, valueName));
+
+    private uint? ReadDword(string key, string valueName)
     {
         if (_native is not null)
             return ReadNative(key, valueName) is int v ? unchecked((uint)v) : null;
@@ -71,7 +77,10 @@ public sealed class RemoteRegistry : IDisposable
     }
 
     /// <summary>Names of the subkeys under <paramref name="key"/> (empty if the key doesn't exist).</summary>
-    public string[] GetSubKeyNames(string key)
+    public string[] GetSubKeyNames(string key) =>
+        LoadTrace.Count("registry reads", () => ReadSubKeyNames(key));
+
+    private string[] ReadSubKeyNames(string key)
     {
         if (_native is not null)
         {

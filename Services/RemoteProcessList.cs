@@ -34,7 +34,7 @@ public sealed class RemoteProcessList
         foreach (var proc in WmiHelper.Query(cimv2, $"SELECT Handle, Name FROM Win32_Process WHERE {where}").Cast<ManagementObject>())
         {
             var args = new object[2];
-            var ok = Convert.ToInt32(proc.InvokeMethod("GetOwner", args)) == 0;
+            var ok = LoadTrace.Count("Win32_Process GetOwner", () => Convert.ToInt32(proc.InvokeMethod("GetOwner", args)) == 0);
             var name = proc["Name"]?.ToString() ?? "";
             if (!byName.TryGetValue(name, out var list))
                 byName[name] = list = new List<RemoteProcess>();
