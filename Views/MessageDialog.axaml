@@ -1,7 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="using:HelpDesk_Pro_Tools.Services"
         x:Class="HelpDesk_Pro_Tools.Views.MessageDialog"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="{x:Static svc:AppIcon.Current}"
         Width="440" SizeToContent="Height"
         CanResize="False" ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">

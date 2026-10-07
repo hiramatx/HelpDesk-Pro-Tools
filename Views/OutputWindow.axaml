@@ -1,9 +1,10 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="using:HelpDesk_Pro_Tools.Services"
         xmlns:vm="using:HelpDesk_Pro_Tools.ViewModels"
         x:Class="HelpDesk_Pro_Tools.Views.OutputWindow"
         x:DataType="vm:OutputViewModel"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="{x:Static svc:AppIcon.Current}"
         Title="{Binding Title}"
         Width="780" Height="560" MinWidth="480" MinHeight="300"
         WindowStartupLocation="CenterOwner">

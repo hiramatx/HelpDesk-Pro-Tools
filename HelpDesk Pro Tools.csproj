@@ -9,7 +9,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Assets\avalonia-logo.ico</ApplicationIcon>
+    <!-- Exe icon: Resources\hdpt.ico when present, otherwise the built-in Avalonia icon -->
+    <ApplicationIcon Condition="Exists('Resources\hdpt.ico')">Resources\hdpt.ico</ApplicationIcon>
+    <ApplicationIcon Condition="!Exists('Resources\hdpt.ico')">Assets\avalonia-logo.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 
@@ -21,6 +23,8 @@
     <!-- Config files are copied to Config\ next to the exe so they can be edited without rebuilding -->
     <None Update="Config\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Scripts\**\*.ps1" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Window / taskbar icon, loaded from Resources\hdpt.ico next to the exe (see Services\AppIcon.cs) -->
+    <None Include="Resources\*.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
