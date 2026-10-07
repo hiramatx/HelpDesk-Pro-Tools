@@ -123,7 +123,7 @@
                 <UniformGrid Columns="2">
                     <Button Classes="flat" Content="AD Console" Command="{Binding AdConsoleCommand}"
                             ToolTip.Tip="Active Directory Users and Computers (dsa.msc)" />
-                    <Button Classes="flat" Content="Windows Terminal" Command="{Binding WindowsTerminalCommand}" />
+                    <Button Classes="flat" Content="PowerShell" Command="{Binding PowerShellCommand}" />
                 </UniformGrid>
             </StackPanel>
         </Border>

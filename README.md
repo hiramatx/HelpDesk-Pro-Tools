@@ -18,7 +18,7 @@ The main window opens as tall as the monitor's usable area (screen minus taskbar
 | **Header** | Light / dark theme toggle (neutral grey), current user with an indicator (green = `-admin` account, orange = standard) |
 | **Remote PC** | Editable PC name box with saved history (last 30, stored in `%AppData%\HelpDeskProTools\settings.json`). **Get PC Details** (or Enter) opens the details window |
 | **Remote Tools** | SFC Scan, Remote PS, Cleanup Temp Folders, Download Log Files, Ping, C Share, Remote Assist, Remote Admin (RDP), Computer Management, Reboot (with confirmation), Send Message. Every tool checks that a valid PC name is entered first |
-| **Local Tools** | AD Users & Computers, Windows Terminal (opens PowerShell instead when Terminal isn't installed for the account the app runs as) |
+| **Local Tools** | AD Users & Computers, PowerShell (PowerShell 7, or Windows PowerShell 5.1 when 7 isn't installed) |
 | **Scripts** | Tabs (Testing, Tools, Fixes, GAD, Utilities, Installs) built from `scripts.json`; each entry becomes a button that opens the `.ps1` in Windows PowerShell (`powershell.exe`) |
 
 ### How each remote tool runs
