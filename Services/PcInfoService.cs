@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.DirectoryServices.ActiveDirectory;
 using System.Linq;
 using System.Management;
 using System.Security.Principal;
@@ -37,6 +38,7 @@ public static class PcInfoService
     public const string DirectAccessGroupName = "Direct Access Users";
 
     private const string CurrentVersionKey = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion";
+    private const string NetlogonParametersKey = @"SYSTEM\CurrentControlSet\Services\Netlogon\Parameters";
 
     /// <summary>
     /// Reads everything in parallel: the sections don't depend on each other except where noted, so the
@@ -124,7 +126,7 @@ public static class PcInfoService
                 Section(PcSection.Memory, async () => ReadMemory(cimv2, await operatingSystem, d)),
                 SyncSection(PcSection.Drives, () => ReadDrives(cimv2, d)),
                 SyncSection(PcSection.Network, () => ReadNetwork(cimv2, d)),
-                Section(PcSection.DomainController, async () => ReadDomainController(cimv2, await registryTask, d)),
+                Section(PcSection.DomainController, async () => ReadDomainController(await registryTask, d)),
                 Section(PcSection.LocalGroups, async () => ReadGroups(pc, await ComputerName(), d)),
                 SyncSection(PcSection.Video, () => ReadVideo(cimv2, d)),
                 SyncSection(PcSection.Monitors, () => ReadMonitors(pc, d)),
@@ -173,11 +175,31 @@ public static class PcInfoService
         d.SerialNumber = bios?["SerialNumber"]?.ToString()?.Trim() ?? "";
     }
 
-    private static void ReadDomainController(ManagementScope cimv2, RemoteRegistry? registry, PcDetails d)
+    private static void ReadDomainController(RemoteRegistry? registry, PcDetails d)
     {
-        var dc = WmiHelper.Query(cimv2, "SELECT DomainControllerName FROM Win32_NTDomain WHERE DomainControllerName IS NOT NULL")
-            .Select(x => x["DomainControllerName"]?.ToString())
-            .FirstOrDefault(x => !string.IsNullOrEmpty(x));
+        // Ask AD for a DC in the PC's site (DC locator, no WMI); the site comes from the PC's Netlogon settings.
+        var site = registry?.GetString(NetlogonParametersKey, "SiteName")
+                   ?? registry?.GetString(NetlogonParametersKey, "DynamicSiteName");
+        var context = new DirectoryContext(DirectoryContextType.Domain);
+        string? dc = null;
+        if (!string.IsNullOrEmpty(site))
+        {
+            try
+            {
+                using var siteDc = DomainController.FindOne(context, site);
+                dc = siteDc.Name;
+            }
+            catch (ActiveDirectoryObjectNotFoundException) { } // no DC in that site: any DC below
+        }
+        if (dc is null)
+        {
+            try
+            {
+                using var anyDc = DomainController.FindOne(context);
+                dc = anyDc.Name;
+            }
+            catch (ActiveDirectoryObjectNotFoundException) { }
+        }
 
         // Fallback: the DC that last applied Group Policy.
         dc ??= registry?.GetString(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Group Policy\History", "DCName");
