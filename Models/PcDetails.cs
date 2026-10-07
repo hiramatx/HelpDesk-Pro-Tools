@@ -24,6 +24,7 @@ public class PcDetails
     public string IpAddress { get; set; } = "";
     public string NetworkSpeed { get; set; } = "";
     public DateTime? LastBoot { get; set; }
+    public DateTime? InstallDate { get; set; } // when Windows was installed (the PC was deployed)
     public string PcOu { get; set; } = "";
 
     // ---- Users

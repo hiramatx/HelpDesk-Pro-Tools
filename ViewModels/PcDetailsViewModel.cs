@@ -196,9 +196,9 @@ public partial class PcDetailsViewModel : ViewModelBase
         yield return BuildIpAddress(d.IpAddress);
         yield return new("Network Speed", d.NetworkSpeed);
         yield return new("Last Boot Time", d.LastBoot?.ToString("g") ?? "");
+        yield return new("Deployed date", d.InstallDate?.ToString("d") ?? "");
         yield return BuildUptime(d.LastBoot);
         yield return new("PC OU", d.PcOu);
-        yield return InfoField.Spacer;
     }
 
     // Uptime: green up to 48 hours, yellow over 48 hours, red over 96 hours.
