@@ -1,9 +1,10 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="using:HelpDesk_Pro_Tools.Services"
         xmlns:vm="using:HelpDesk_Pro_Tools.ViewModels"
         x:Class="HelpDesk_Pro_Tools.Views.SendMessageWindow"
         x:DataType="vm:SendMessageViewModel"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="{x:Static svc:AppIcon.Current}"
         Title="{Binding PcName, StringFormat='Send Message - {0}'}"
         Width="520" SizeToContent="Height" CanResize="False"
         WindowStartupLocation="CenterOwner">

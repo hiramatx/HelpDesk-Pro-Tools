@@ -153,10 +153,11 @@ Controls/     LiquidFillGauge (custom-drawn animated gauge)
 Models/       AppSettings, PcDetails, ScriptEntry, ConfigModels (software / exclusions)
 Services/     RemoteOperations, PcInfoService, SoftwareInventoryService, ActiveDirectoryService,
               LocalGroupService, UserExclusions, RemoteRegistry, ProcessLauncher, DialogService,
-              SettingsService, ScriptCatalogService, ConfigFiles, ThemeService, WmiHelper
+              SettingsService, ScriptCatalogService, ConfigFiles, ThemeService, WmiHelper, AppIcon
 ViewModels/   MainViewModel, PcDetailsViewModel, OutputViewModel, SendMessageViewModel, ScriptCategoryViewModel
 Views/        MainWindow, PcDetailsWindow, OutputWindow, SendMessageWindow, MessageDialog
 Themes/       AppStyles.axaml (cards, flat buttons, tabs); theme colours are in App.axaml
 Config/       scripts.json, software.json, baselines.json, excluded_users.json, excluded_video_cards.json (copied next to the exe)
 Scripts/      Sample .ps1 files referenced by scripts.json
+Resources/    hdpt.ico app icon (window, taskbar and exe; falls back to Assets\ when missing)
 ```

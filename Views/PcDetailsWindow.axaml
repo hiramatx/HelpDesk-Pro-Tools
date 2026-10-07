@@ -1,11 +1,12 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="using:HelpDesk_Pro_Tools.Services"
         xmlns:vm="using:HelpDesk_Pro_Tools.ViewModels"
         xmlns:m="using:HelpDesk_Pro_Tools.Models"
         xmlns:c="using:HelpDesk_Pro_Tools.Controls"
         x:Class="HelpDesk_Pro_Tools.Views.PcDetailsWindow"
         x:DataType="vm:PcDetailsViewModel"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="{x:Static svc:AppIcon.Current}"
         Title="{Binding PcName, StringFormat='PC Details - {0}'}"
         Width="880" Height="1000" MinWidth="700" MinHeight="500"
         WindowStartupLocation="CenterOwner">

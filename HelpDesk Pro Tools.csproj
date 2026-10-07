@@ -3,13 +3,15 @@
     <RootNamespace>HelpDesk_Pro_Tools</RootNamespace>
     <AssemblyName>HelpDeskProTools</AssemblyName>
     <!-- 5.x = the C# / Avalonia rewrite (the earlier WPF tools ended at 3.0; 4.x was skipped) -->
-    <Version>5.1.3</Version>
+    <Version>5.1.4</Version>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Assets\avalonia-logo.ico</ApplicationIcon>
+    <!-- Exe icon: Resources\hdpt.ico when present, otherwise the built-in Avalonia icon -->
+    <ApplicationIcon Condition="Exists('Resources\hdpt.ico')">Resources\hdpt.ico</ApplicationIcon>
+    <ApplicationIcon Condition="!Exists('Resources\hdpt.ico')">Assets\avalonia-logo.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 
@@ -21,6 +23,8 @@
     <!-- Config files are copied to Config\ next to the exe so they can be edited without rebuilding -->
     <None Update="Config\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Scripts\**\*.ps1" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Window / taskbar icon, loaded from Resources\hdpt.ico next to the exe (see Services\AppIcon.cs) -->
+    <None Include="Resources\*.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
