@@ -34,6 +34,21 @@ public class DialogService : IDialogService
         Show(new SendMessageWindow { DataContext = new SendMessageViewModel(pc) });
     }
 
+    public void ShowAddTempAdmin(string pc)
+    {
+        Show(new AddTempAdminWindow { DataContext = new AddTempAdminViewModel(pc) });
+    }
+
+    public void ShowRemoveTempAdmin()
+    {
+        Show(new RemoveTempAdminWindow { DataContext = new RemoveTempAdminViewModel() });
+    }
+
+    public void ShowAddRemoteDesktop(string pc)
+    {
+        Show(new AddRemoteDesktopWindow { DataContext = new AddRemoteDesktopViewModel(pc) });
+    }
+
     public async Task<bool> ConfirmAsync(string title, string message, string confirmText)
     {
         var dialog = MessageDialog.CreateConfirm(title, message, confirmText, danger: true);

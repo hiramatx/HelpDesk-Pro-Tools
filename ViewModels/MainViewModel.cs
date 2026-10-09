@@ -209,6 +209,22 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void AddTempAdmin()
+    {
+        if (TryGetPc(out var pc)) _dialogs.ShowAddTempAdmin(pc);
+    }
+
+    /// <summary>Works from the log file, which names each entry's PC, so no PC name is needed here.</summary>
+    [RelayCommand]
+    private void RemoveTempAdmin() => _dialogs.ShowRemoveTempAdmin();
+
+    [RelayCommand]
+    private void AddRemoteDesktop()
+    {
+        if (TryGetPc(out var pc)) _dialogs.ShowAddRemoteDesktop(pc);
+    }
+
+    [RelayCommand]
     private void SendMessage()
     {
         if (TryGetPc(out var pc)) _dialogs.ShowSendMessage(pc);

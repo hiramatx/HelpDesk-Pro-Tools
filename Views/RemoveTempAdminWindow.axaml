@@ -1,0 +1,61 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="using:HelpDesk_Pro_Tools.Services"
+        xmlns:m="using:HelpDesk_Pro_Tools.Models"
+        xmlns:vm="using:HelpDesk_Pro_Tools.ViewModels"
+        x:Class="HelpDesk_Pro_Tools.Views.RemoveTempAdminWindow"
+        x:DataType="vm:RemoveTempAdminViewModel"
+        Icon="{x:Static svc:AppIcon.Current}"
+        Title="Remove Temporary Admin"
+        Width="620" Height="520" MinWidth="460" MinHeight="320"
+        WindowStartupLocation="CenterOwner">
+
+    <Border Classes="card" Margin="16">
+        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" >
+            <TextBlock FontSize="18" FontWeight="Bold" Text="Remove Temporary Admin" />
+            <TextBlock Grid.Row="1" Classes="muted" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,10"
+                       Text="Users logged in Config\temp_admin_users.json. Select one or more (Ctrl / Shift + click) to remove them from Administrators on their PC." />
+
+            <!-- Column headers; the same column widths are used by each row below -->
+            <Grid Grid.Row="2" ColumnDefinitions="150,200,*" Margin="12,0,12,4">
+                <TextBlock Classes="label" Text="Date" />
+                <TextBlock Grid.Column="1" Classes="label" Text="PC" />
+                <TextBlock Grid.Column="2" Classes="label" Text="User" />
+            </Grid>
+
+            <Border Grid.Row="3" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8">
+                <Grid>
+                    <TextBlock IsVisible="{Binding IsEmpty}" Classes="muted" Margin="12,10" Text="No temporary admins are logged." />
+                    <ListBox x:Name="EntryList" ItemsSource="{Binding Entries}" SelectionMode="Multiple"
+                             Background="Transparent" SelectionChanged="EntryList_SelectionChanged">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="m:TempAdminEntry">
+                                <Grid ColumnDefinitions="150,200,*">
+                                    <TextBlock Text="{Binding Date}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Pc}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="2" Text="{Binding User}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <TextBlock Grid.Row="4" Text="{Binding Status}" TextWrapping="Wrap" FontSize="12" Margin="0,10,0,0"
+                       IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                       Classes.error="{Binding IsError}">
+                <TextBlock.Styles>
+                    <Style Selector="TextBlock.error">
+                        <Setter Property="Foreground" Value="{StaticResource RedBrush}" />
+                    </Style>
+                </TextBlock.Styles>
+            </TextBlock>
+
+            <Grid Grid.Row="5" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,10,0,0">
+                <Button Classes="flat" Content="Reload" Width="110" Command="{Binding ReloadCommand}" />
+                <Button Grid.Column="2" Classes="flat" Content="Close" Width="110" Click="Close_Click" />
+                <Button Grid.Column="3" Classes="flat purple" Content="Remove Selected" MinWidth="150" Command="{Binding RemoveCommand}" />
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

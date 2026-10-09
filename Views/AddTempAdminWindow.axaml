@@ -1,0 +1,36 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="using:HelpDesk_Pro_Tools.Services"
+        xmlns:vm="using:HelpDesk_Pro_Tools.ViewModels"
+        x:Class="HelpDesk_Pro_Tools.Views.AddTempAdminWindow"
+        x:DataType="vm:AddTempAdminViewModel"
+        Icon="{x:Static svc:AppIcon.Current}"
+        Title="{Binding PcName, StringFormat='Add Temporary Admin - {0}'}"
+        Width="480" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner">
+
+    <Border Classes="card" Margin="16">
+        <StackPanel Spacing="10">
+            <TextBlock FontSize="18" FontWeight="Bold" Text="{Binding PcName, StringFormat='Add Temporary Admin on {0}'}" />
+            <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                       Text="Adds the user to the local Administrators group and logs it in Config\temp_admin_users.json, so it can be taken away later with Remove Temporary Admin." />
+
+            <TextBox x:Name="UserInput" Text="{Binding UserName}" PlaceholderText="User name (jdoe or DOMAIN\jdoe)" />
+
+            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12"
+                       IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                       Classes.error="{Binding IsError}">
+                <TextBlock.Styles>
+                    <Style Selector="TextBlock.error">
+                        <Setter Property="Foreground" Value="{StaticResource RedBrush}" />
+                    </Style>
+                </TextBlock.Styles>
+            </TextBlock>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Classes="flat" Content="Close" Width="110" Click="Close_Click" />
+                <Button Classes="flat purple" Content="Add" Width="110" IsDefault="True" Command="{Binding AddCommand}" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>
