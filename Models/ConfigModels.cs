@@ -52,3 +52,12 @@ public class ExcludedUsers
     public List<string> RemoteDesktopUsers { get; set; } = new();
     public List<string> DirectAccessUsers { get; set; } = new();
 }
+
+/// <summary>One entry in Config\temp_admin_users.json: a user given temporary admin rights on a PC.</summary>
+public class TempAdminEntry
+{
+    /// <summary>When the user was added, "yyyy-MM-dd HH:mm" (local time).</summary>
+    public string Date { get; set; } = "";
+    public string Pc { get; set; } = "";
+    public string User { get; set; } = "";
+}

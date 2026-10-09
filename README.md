@@ -17,7 +17,7 @@ The main window opens as tall as the monitor's usable area (screen minus taskbar
 |---|---|
 | **Header** | Light / dark theme toggle (neutral grey), current user with an indicator (green = `-admin` account, orange = standard) |
 | **Remote PC** | Editable PC name box with saved history (last 30, stored in `%AppData%\HelpDeskProTools\settings.json`). **Get PC Details** (or Enter) opens the details window |
-| **Remote Tools** | SFC Scan, Remote PS, Cleanup Temp Folders, Download Log Files, Ping, C Share, Remote Assist, Remote Admin (RDP), Computer Management, Reboot (with confirmation), Send Message. Every tool checks that a valid PC name is entered first |
+| **Remote Tools** | SFC Scan, Remote PS, Cleanup Temp Folders, Download Log Files, Ping, C Share, Remote Assist, Remote Admin (RDP), Computer Management, Reboot (with confirmation), Add / Remove Temporary Admin, Add Remote Desktop, Send Message. Every tool except Remove Temporary Admin checks that a valid PC name is entered first |
 | **Local Tools** | AD Users & Computers, Windows Terminal |
 | **Scripts** | Tabs (Testing, Tools, Fixes, GAD, Utilities, Installs) built from `scripts.json`; each entry becomes a button that opens the `.ps1` in Windows PowerShell (`powershell.exe`) |
 
@@ -30,6 +30,9 @@ The main window opens as tall as the monitor's usable area (screen minus taskbar
 | Download Log Files | C# `EventLogSession` exports System/Application/Setup `.evtx` on the PC, then copies them plus CBS, DISM, Panther and CCM logs to `Desktop\RemoteLogs\PC_timestamp` |
 | Ping PC | C# `Ping` + DNS lookup, continuous (like `ping -t`) with timestamps until **Stop**, then shows statistics |
 | Reboot PC | C# WMI `Win32_OperatingSystem.Win32Shutdown` (forced restart), then watches the PC go offline and come back |
+| Add Temporary Admin | Adds a domain user (`jdoe` = your own domain, or `DOMAIN\jdoe`) to the local Administrators group via `WinNT://PC/Administrators` and logs date, PC and user in `temp_admin_users.json`. A user who was already an admin is not logged |
+| Remove Temporary Admin | Lists every entry in `temp_admin_users.json` (any PC); removes the selected users from Administrators on their PC and from the file. An entry whose removal fails (e.g. PC offline) stays in the file |
+| Add Remote Desktop | Adds a domain user to the local Remote Desktop Users and/or Direct Access Users group on the PC |
 | Send Message | `msg.exe * /server:PC` |
 | Remote PS | `pwsh` → `Enter-PSSession` |
 | C Share | Two file windows for moving files between the tech's PC and the target: the tech's own profile on this PC (`C:\Users\<you without -admin>`) and `\\PC\c$`. Both use the account the app runs as. When the app is started with "Run as different user", they open in an in-app file window, because Windows always runs File Explorer as the logged-on desktop user |
@@ -65,6 +68,7 @@ All settings files live in `Config\` next to `HelpDeskProTools.exe`. When the ap
 | `baselines.json` | Minimum version per program (green / red colouring) |
 | `excluded_users.json` | Members hidden from the Local Admin / Remote Desktop / Direct Access lists |
 | `excluded_video_cards.json` | Video cards hidden from the Hardware card (e.g. virtual display adapters) |
+| `temp_admin_users.json` | Written by the app: users added with **Add Temporary Admin** (date, PC, user). Created on first use; keep it when upgrading |
 
 Changes to `software.json`, `baselines.json` and the two `excluded_*.json` files apply the next time PC Details is opened or refreshed. PC-name history and the theme choice stay per user in `%AppData%\HelpDeskProTools\settings.json`.
 
@@ -152,10 +156,12 @@ Not case-sensitive, and `*` is a wildcard.
 Controls/     LiquidFillGauge (custom-drawn animated gauge)
 Models/       AppSettings, PcDetails, ScriptEntry, ConfigModels (software / exclusions)
 Services/     RemoteOperations, PcInfoService, SoftwareInventoryService, ActiveDirectoryService,
-              LocalGroupService, UserExclusions, RemoteRegistry, ProcessLauncher, DialogService,
+              LocalGroupService, TempAdminLog, UserExclusions, RemoteRegistry, ProcessLauncher, DialogService,
               SettingsService, ScriptCatalogService, ConfigFiles, ThemeService, WmiHelper, AppIcon
-ViewModels/   MainViewModel, PcDetailsViewModel, OutputViewModel, SendMessageViewModel, ScriptCategoryViewModel
-Views/        MainWindow, PcDetailsWindow, OutputWindow, SendMessageWindow, MessageDialog
+ViewModels/   MainViewModel, PcDetailsViewModel, OutputViewModel, SendMessageViewModel, ScriptCategoryViewModel,
+              AddTempAdminViewModel, RemoveTempAdminViewModel, AddRemoteDesktopViewModel
+Views/        MainWindow, PcDetailsWindow, OutputWindow, SendMessageWindow, MessageDialog,
+              AddTempAdminWindow, RemoveTempAdminWindow, AddRemoteDesktopWindow
 Themes/       AppStyles.axaml (cards, flat buttons, tabs); theme colours are in App.axaml
 Config/       scripts.json, software.json, baselines.json, excluded_users.json, excluded_video_cards.json (copied next to the exe)
 Scripts/      Sample .ps1 files referenced by scripts.json

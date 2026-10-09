@@ -119,6 +119,21 @@
         <Setter Property="Foreground" Value="White" />
     </Style>
 
+    <!-- Purple follows the theme: #FFE0FF with dark text in light, #A47DAB with white text in dark -->
+    <Style Selector="Button.flat.purple">
+        <Setter Property="Background" Value="{DynamicResource PurpleBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PurpleFgBrush}" />
+    </Style>
+    <Style Selector="Button.flat.purple:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource PurpleHoverBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PurpleFgBrush}" />
+    </Style>
+    <Style Selector="Button.flat.purple:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource PurpleHoverBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PurpleFgBrush}" />
+        <Setter Property="Opacity" Value="0.8" />
+    </Style>
+
     <Style Selector="Button.flat.blue:pressed /template/ ContentPresenter#PART_ContentPresenter,
                      Button.flat.cyan:pressed /template/ ContentPresenter#PART_ContentPresenter,
                      Button.flat.green:pressed /template/ ContentPresenter#PART_ContentPresenter,

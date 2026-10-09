@@ -111,6 +111,13 @@
                     <Button Classes="flat" Content="Computer Management" Command="{Binding ComputerManagementCommand}" />
                     <Button Classes="flat red" Content="Reboot PC" Command="{Binding RebootPcCommand}" />
 
+                    <Button Classes="flat purple" Content="Add Temporary Admin" Command="{Binding AddTempAdminCommand}"
+                            ToolTip.Tip="Adds a user to the Administrators group on the remote PC and logs it in temp_admin_users.json" />
+                    <Button Classes="flat purple" Content="Remove Temporary Admin" Command="{Binding RemoveTempAdminCommand}"
+                            ToolTip.Tip="Removes users logged in temp_admin_users.json from the Administrators group of their PC" />
+
+                    <Button Classes="flat purple" Content="Add Remote Desktop" Command="{Binding AddRemoteDesktopCommand}"
+                            ToolTip.Tip="Adds a user to Remote Desktop Users and/or Direct Access Users on the remote PC" />
                     <Button Classes="flat" Content="Send Message" Command="{Binding SendMessageCommand}" />
                 </UniformGrid>
             </StackPanel>

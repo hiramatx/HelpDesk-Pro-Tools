@@ -24,6 +24,9 @@
                     <SolidColorBrush x:Key="GaugeTrackBrush" Color="#F3F4F6" />
                     <SolidColorBrush x:Key="ConsoleBgBrush" Color="#F9FAFB" />
                     <SolidColorBrush x:Key="CautionTextBrush" Color="#B45309" />
+                    <SolidColorBrush x:Key="PurpleBrush" Color="#FFE0FF" />
+                    <SolidColorBrush x:Key="PurpleHoverBrush" Color="#F5C8F5" />
+                    <SolidColorBrush x:Key="PurpleFgBrush" Color="#1F2937" />
                     <BoxShadows x:Key="CardShadow">0 2 8 0 #14000000</BoxShadows>
                 </ResourceDictionary>
 
@@ -44,6 +47,9 @@
                     <SolidColorBrush x:Key="GaugeTrackBrush" Color="#2A2A2A" />
                     <SolidColorBrush x:Key="ConsoleBgBrush" Color="#161616" />
                     <SolidColorBrush x:Key="CautionTextBrush" Color="#EAB308" />
+                    <SolidColorBrush x:Key="PurpleBrush" Color="#A47DAB" />
+                    <SolidColorBrush x:Key="PurpleHoverBrush" Color="#8F6A96" />
+                    <SolidColorBrush x:Key="PurpleFgBrush" Color="#FFFFFF" />
                     <BoxShadows x:Key="CardShadow">0 2 8 0 #40000000</BoxShadows>
                 </ResourceDictionary>
 

@@ -14,6 +14,12 @@ public interface IDialogService
 
     void ShowSendMessage(string pc);
 
+    void ShowAddTempAdmin(string pc);
+
+    void ShowRemoveTempAdmin();
+
+    void ShowAddRemoteDesktop(string pc);
+
     Task<bool> ConfirmAsync(string title, string message, string confirmText);
 
     Task ShowErrorAsync(string title, string message);
