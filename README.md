@@ -17,7 +17,7 @@ The main window opens as tall as the monitor's usable area (screen minus taskbar
 |---|---|
 | **Header** | Light / dark theme toggle (neutral grey), current user with an indicator (green = `-admin` account, orange = standard) |
 | **Remote PC** | Editable PC name box with saved history (last 30, stored in `%AppData%\HelpDeskProTools\settings.json`). **Get PC Details** (or Enter) opens the details window |
-| **Remote Tools** | SFC Scan, Remote PS, Cleanup Temp Folders, Download Log Files, Ping, C Share, Remote Assist, Remote Admin (RDP), Computer Management, Reboot (with confirmation), Add / Remove Temporary Admin, Add Remote Desktop, Send Message. Every tool except Remove Temporary Admin checks that a valid PC name is entered first |
+| **Remote Tools** | SFC Scan, Remote PS, Cleanup Temp Folders, Download Log Files, Ping, c$ Share, Remote Assist, Remote Admin (RDP), Computer Management, Reboot (with confirmation), Add / Remove Temporary Admin, Add Remote Desktop, Send Message. Every tool except Remove Temporary Admin checks that a valid PC name is entered first |
 | **Local Tools** | AD Users & Computers, Windows Terminal |
 | **Scripts** | Tabs (Testing, Tools, Fixes, GAD, Utilities, Installs) built from `scripts.json`; each entry becomes a button that opens the `.ps1` in Windows PowerShell (`powershell.exe`) |
 
@@ -35,7 +35,7 @@ The main window opens as tall as the monitor's usable area (screen minus taskbar
 | Add Remote Desktop | Adds a domain user to the local Remote Desktop Users and/or Direct Access Users group on the PC |
 | Send Message | `msg.exe * /server:PC` |
 | Remote PS | `pwsh` → `Enter-PSSession` |
-| C Share | Two file windows for moving files between the tech's PC and the target: the tech's own profile on this PC (`C:\Users\<you without -admin>`) and `\\PC\c$`. Both use the account the app runs as. When the app is started with "Run as different user", they open in an in-app file window, because Windows always runs File Explorer as the logged-on desktop user |
+| c$ Share | Opens [Dockett](https://github.com/hiramatx/dockett), a dual pane file manager, with the tech's own profile on this PC (`C:\Users\<you without -admin>`) on the left and `\\PC\c$` on the right. Dockett runs as the account the app runs as, also when the app is started with "Run as different user". The build downloads Dockett's portable release (pinned version, SHA-256 checked) into `Tools\Dockett\` next to the exe; without it the button opens two folder windows instead |
 | Remote Assist / Remote Admin / Computer Mgmt | `msra /offerra`, `mstsc /admin`, `compmgmt.msc /computer:` |
 
 The main window fills the right half of its screen and **PC Details** opens filling the left half of the same screen (taskbar excluded). Data comes from WMI via `System.Management`, remote registry via the Remote Registry service when it is reachable (otherwise WMI `StdRegProv`, which works without the service), the `c$` share and AD via `System.DirectoryServices`. The sections are read in parallel and each card fills in as soon as its data arrives; the header shows how long the whole load took (hover it for the time of each section):
