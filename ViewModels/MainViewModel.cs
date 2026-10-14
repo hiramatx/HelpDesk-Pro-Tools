@@ -168,20 +168,46 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private Task CShare() => Launch(pc =>
+    private async Task CShare()
     {
-        // Folder problems are reported from the browser's own thread, so hop back to the UI thread.
-        void ShowError(string message) =>
-            Dispatcher.UIThread.Post(() => _ = _dialogs.ShowErrorAsync("C Share", message));
+        if (!TryGetPc(out var pc)) return;
 
-        // Two windows for moving files between the tech's PC and the target PC, both opened with the
-        // account this app runs as (e.g. d.smith-admin):
-        //   1. the tech's own profile on this PC  - C:\Users\d.smith ("-admin" removed)
-        //   2. the target PC's C: drive           - \\PC\c$
+        // Moving files between the tech's PC and the target PC, with the account this app runs as
+        // (e.g. d.smith-admin):
+        //   left  - the tech's own profile on this PC  - C:\Users\d.smith ("-admin" removed)
+        //   right - the target PC's C: drive           - \\PC\c$
         var usersFolder = System.IO.Path.GetDirectoryName(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)) ?? @"C:\Users";
-        ProcessLauncher.OpenFolder(System.IO.Path.Combine(usersFolder, StandardUserName), ShowError);
-        ProcessLauncher.OpenFolder($@"\\{pc}\c$", ShowError);
-    });
+        var local = System.IO.Path.Combine(usersFolder, StandardUserName);
+        var remote = $@"\\{pc}\c$";
+
+        try
+        {
+            if (!DockettLauncher.IsAvailable)
+            {
+                // Dockett missing (e.g. a dev build without it): fall back to two folder windows.
+                // Folder problems are reported from the browser's own thread, so hop back to the UI thread.
+                void ShowError(string message) =>
+                    Dispatcher.UIThread.Post(() => _ = _dialogs.ShowErrorAsync("c$ Share", message));
+                ProcessLauncher.OpenFolder(local, ShowError);
+                ProcessLauncher.OpenFolder(remote, ShowError);
+                return;
+            }
+
+            // Dockett skips start folders that don't exist (an offline PC would end up showing this PC's C:),
+            // so check both first. A UNC check can take a while when the PC is offline: keep it off the UI thread.
+            var (localOk, remoteOk) = await Task.Run(() => (System.IO.Directory.Exists(local), System.IO.Directory.Exists(remote)));
+            if (!remoteOk)
+            {
+                await _dialogs.ShowErrorAsync("c$ Share", $"Cannot open {remote}. Check that the PC is online and that {Environment.UserName} has access.");
+                return;
+            }
+            DockettLauncher.Open(localOk ? local : usersFolder, remote);
+        }
+        catch (Exception ex)
+        {
+            await _dialogs.ShowErrorAsync("Launch failed", ex.Message);
+        }
+    }
 
     [RelayCommand]
     private Task RemoteAssist() => Launch(pc =>

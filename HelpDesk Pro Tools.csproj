@@ -3,7 +3,7 @@
     <RootNamespace>HelpDesk_Pro_Tools</RootNamespace>
     <AssemblyName>HelpDeskProTools</AssemblyName>
     <!-- 5.x = the C# / Avalonia rewrite (the earlier WPF tools ended at 3.0; 4.x was skipped) -->
-    <Version>5.2.0</Version>
+    <Version>5.3.0</Version>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
@@ -41,4 +41,34 @@
     <PackageReference Include="System.Diagnostics.EventLog" Version="10.0.0" />
     <PackageReference Include="System.Management" Version="10.0.0" />
   </ItemGroup>
+
+  <!--
+    c$ Share opens Dockett (github.com/hiramatx/dockett), a dual pane file manager. Its portable release
+    is downloaded once into obj\dockett, checked against the release's SHA-256, and copied to
+    Tools\Dockett next to the exe on build and publish. To update, change the version and hash
+    (SHA256SUMS.txt on the release). Dockett.portable is left out so each tech's Dockett settings stay
+    in their own %APPDATA%\Dockett, even when the app runs from a shared folder.
+    Build with -p:SkipDockett=true to leave it out (c$ Share then opens two folder windows).
+  -->
+  <PropertyGroup>
+    <DockettVersion>0.1.0</DockettVersion>
+    <DockettSha256>8b40c82a3fd885cd567b95c5d7879ffd3644d19aeeec4a99f368d8b24760477d</DockettSha256>
+    <DockettZipName>Dockett-$(DockettVersion)-win-x64-portable.zip</DockettZipName>
+    <DockettCache>$(BaseIntermediateOutputPath)dockett\</DockettCache>
+    <DockettDir>$(DockettCache)$(DockettVersion)\</DockettDir>
+  </PropertyGroup>
+
+  <Target Name="IncludeDockett" BeforeTargets="AssignTargetPaths" Condition="'$(SkipDockett)' != 'true'">
+    <DownloadFile SourceUrl="https://github.com/hiramatx/dockett/releases/download/v$(DockettVersion)/$(DockettZipName)"
+                  DestinationFolder="$(DockettCache)" DestinationFileName="$(DockettZipName)"
+                  Condition="!Exists('$(DockettCache)$(DockettZipName)')" />
+    <VerifyFileHash File="$(DockettCache)$(DockettZipName)" Hash="$(DockettSha256)" />
+    <Unzip SourceFiles="$(DockettCache)$(DockettZipName)" DestinationFolder="$(DockettDir)"
+           Condition="!Exists('$(DockettDir)Dockett.exe')" />
+    <ItemGroup>
+      <_DockettFile Include="$(DockettDir)Dockett.exe;$(DockettDir)README.txt" />
+      <None Include="@(_DockettFile)" Link="Tools\Dockett\%(_DockettFile.Filename)%(_DockettFile.Extension)"
+            CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
 </Project>

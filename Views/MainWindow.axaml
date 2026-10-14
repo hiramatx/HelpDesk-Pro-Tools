@@ -100,8 +100,8 @@
                             ToolTip.Tip="Event logs (System/Application/Setup), CBS, DISM, Panther, CCM → Desktop\RemoteLogs" />
 
                     <Button Classes="flat" Content="Ping PC" Command="{Binding PingCommand}" />
-                    <Button Classes="flat" Content="C Share" Command="{Binding CShareCommand}"
-                            ToolTip.Tip="Opens your own profile folder on this PC and \\PC\c$ on the remote PC, to move files between them" />
+                    <Button Classes="flat" Content="c$ Share" Command="{Binding CShareCommand}"
+                            ToolTip.Tip="Opens Dockett with your own profile folder on this PC on the left and \\PC\c$ on the right, to move files between them" />
 
                     <Button Classes="flat cyan" Content="Remote Assist" Command="{Binding RemoteAssistCommand}"
                             ToolTip.Tip="msra.exe /offerra" />
