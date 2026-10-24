@@ -14,6 +14,8 @@ public interface IDialogService
 
     void ShowSendMessage(string pc);
 
+    void ShowProcessManager(string pc);
+
     void ShowAddTempAdmin(string pc);
 
     void ShowRemoveTempAdmin();

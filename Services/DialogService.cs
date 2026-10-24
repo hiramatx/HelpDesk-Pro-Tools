@@ -34,6 +34,13 @@ public class DialogService : IDialogService
         Show(new SendMessageWindow { DataContext = new SendMessageViewModel(pc) });
     }
 
+    public void ShowProcessManager(string pc)
+    {
+        var vm = new ProcessManagerViewModel(pc, ConfirmAsync);
+        Show(new ProcessManagerWindow { DataContext = vm });
+        _ = vm.RefreshAsync();
+    }
+
     public void ShowAddTempAdmin(string pc)
     {
         Show(new AddTempAdminWindow { DataContext = new AddTempAdminViewModel(pc) });
