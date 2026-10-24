@@ -1,0 +1,99 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="using:HelpDesk_Pro_Tools.Services"
+        xmlns:vm="using:HelpDesk_Pro_Tools.ViewModels"
+        x:Class="HelpDesk_Pro_Tools.Views.ProcessManagerWindow"
+        x:DataType="vm:ProcessManagerViewModel"
+        Icon="{x:Static svc:AppIcon.Current}"
+        Title="{Binding Title}"
+        Width="980" Height="700" MinWidth="700" MinHeight="400"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.KeyBindings>
+        <KeyBinding Gesture="F5" Command="{Binding RefreshCommand}" />
+    </Window.KeyBindings>
+
+    <Window.Styles>
+        <!-- Clickable column headers: click to sort, click again to reverse -->
+        <Style Selector="Button.header">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.header:pointerover /template/ ContentPresenter#PART_ContentPresenter,
+                         Button.header:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+        </Style>
+        <Style Selector="TextBlock.error">
+            <Setter Property="Foreground" Value="{StaticResource RedBrush}" />
+        </Style>
+    </Window.Styles>
+
+    <Border Classes="card" Margin="16">
+        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+            <TextBlock FontSize="18" FontWeight="Bold" Text="{Binding PcName, StringFormat='Processes on {0}'}" />
+
+            <!-- Search + Microsoft services toggle -->
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,10,0,10">
+                <TextBox Text="{Binding SearchText}" PlaceholderText="Filter by name, PID, user or description"
+                         Height="34" VerticalContentAlignment="Center" />
+                <CheckBox Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center"
+                          Content="Show Microsoft services"
+                          IsChecked="{Binding ShowMicrosoftServices}"
+                          ToolTip.Tip="Windows and Microsoft background processes (in the Windows folder or running as SYSTEM / LOCAL SERVICE / NETWORK SERVICE). Microsoft apps the user runs, like Outlook, Teams and Edge, are always shown." />
+            </Grid>
+
+            <!-- Column headers; the same column widths are used by each row below -->
+            <Grid Grid.Row="2" ColumnDefinitions="230,80,160,110,*" Margin="12,0,12,4">
+                <Button Classes="header" Content="Name" Command="{Binding SortByCommand}" CommandParameter="Name" />
+                <Button Grid.Column="1" Classes="header" Content="PID" Command="{Binding SortByCommand}" CommandParameter="Pid" />
+                <Button Grid.Column="2" Classes="header" Content="User" Command="{Binding SortByCommand}" CommandParameter="User" />
+                <Button Grid.Column="3" Classes="header" Content="Memory" Command="{Binding SortByCommand}" CommandParameter="Memory"
+                        ToolTip.Tip="Working set" />
+                <Button Grid.Column="4" Classes="header" Content="Description" Command="{Binding SortByCommand}" CommandParameter="Details" />
+            </Grid>
+
+            <Border Grid.Row="3" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8">
+                <ListBox ItemsSource="{Binding Processes}" SelectedItem="{Binding SelectedProcess}"
+                         SelectionMode="Single" Background="Transparent">
+                    <ListBox.KeyBindings>
+                        <KeyBinding Gesture="Delete" Command="{Binding EndTaskCommand}" />
+                    </ListBox.KeyBindings>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="svc:RemoteProcessInfo">
+                            <Grid ColumnDefinitions="230,80,160,110,*" Background="Transparent"
+                                  ToolTip.Tip="{Binding ToolTip}">
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="1" Text="{Binding PidText}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="{Binding User}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="3" Text="{Binding MemoryText}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="4" Text="{Binding Details}" Classes="muted" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
+
+            <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="0,10,0,0">
+                <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12"
+                           Classes.error="{Binding IsError}" />
+                <TextBlock Grid.Column="1" Text="{Binding Summary}" Classes="muted" FontSize="12" Margin="12,0,0,0" />
+            </Grid>
+
+            <Grid Grid.Row="5" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,10,0,0">
+                <Button Classes="flat" Content="Refresh" Width="110" Command="{Binding RefreshCommand}"
+                        ToolTip.Tip="Reload the list (F5)" />
+                <Button Grid.Column="2" Classes="flat" Content="Close" Width="110" Click="Close_Click" />
+                <Button Grid.Column="3" Classes="flat red" Content="End Task" MinWidth="150" Command="{Binding EndTaskCommand}"
+                        ToolTip.Tip="Ends the selected process on the remote PC (Delete)" />
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
