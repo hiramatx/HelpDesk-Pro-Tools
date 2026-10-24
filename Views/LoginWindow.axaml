@@ -6,19 +6,19 @@
         x:DataType="vm:LoginViewModel"
         Icon="{x:Static svc:AppIcon.Current}"
         Title="Log in - HelpDesk Pro Tools"
-        Width="420" SizeToContent="Height" CanResize="False" ShowInTaskbar="False"
-        WindowStartupLocation="CenterOwner">
+        Width="440" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterScreen">
 
     <Border Classes="card" Margin="16">
         <StackPanel Spacing="10">
-            <TextBlock FontSize="18" FontWeight="Bold" Text="Log in" />
+            <TextBlock FontSize="18" FontWeight="Bold" Text="HelpDesk Pro Tools" />
             <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
-                       Text="Log in with your domain account. The dot next to your name turns green when the account is in Domain Admins." />
+                       Text="Log in with the account to run the tools as (e.g. your admin account). The app starts as that account, like &quot;Run as different user&quot;." />
 
             <TextBox x:Name="UserInput" Text="{Binding UserName}" PlaceholderText="User name (jdoe or DOMAIN\jdoe)" />
             <TextBox x:Name="PasswordInput" Text="{Binding Password}" PasswordChar="●" PlaceholderText="Password" />
             <CheckBox Content="Keep me logged in" IsChecked="{Binding KeepLoggedIn}"
-                      ToolTip.Tip="Saves the login in Windows Credential Manager (encrypted for your Windows account) and logs in automatically next time" />
+                      ToolTip.Tip="Saves the login in Windows Credential Manager (encrypted for your Windows account) and starts the app as that account straight away next time. Hold Shift while starting the app to see this box again." />
 
             <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12"
                        IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
@@ -30,10 +30,13 @@
                 </TextBlock.Styles>
             </TextBlock>
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Classes="flat" Content="Not now" Width="110" IsCancel="True" Click="Close_Click" />
-                <Button Classes="flat primary" Content="Log in" Width="110" IsDefault="True" Command="{Binding LogInCommand}" />
-            </StackPanel>
+            <Grid ColumnDefinitions="*,Auto">
+                <Button Classes="link" HorizontalAlignment="Left" Command="{Binding RunAsWindowsUserCommand}"
+                        Content="{Binding RunAsWindowsUserText}"
+                        ToolTip.Tip="Open the app as the Windows user, without logging in" />
+                <Button Grid.Column="1" Classes="flat primary" Content="Log in" Width="110" IsDefault="True"
+                        Command="{Binding LogInCommand}" />
+            </Grid>
         </StackPanel>
     </Border>
 </Window>

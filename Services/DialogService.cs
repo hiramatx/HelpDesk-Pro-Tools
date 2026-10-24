@@ -62,13 +62,6 @@ public class DialogService : IDialogService
         else dialog.Show();
     }
 
-    public async Task<AppLogin?> ShowLoginAsync(string? userName, bool keepLoggedIn)
-    {
-        if (Owner is not { } owner) return null;
-        var dialog = new LoginWindow { DataContext = new LoginViewModel(userName, keepLoggedIn) };
-        return await dialog.ShowDialog<AppLogin?>(owner);
-    }
-
     // Tool windows are non-modal so several jobs / PCs can run side by side.
     private static void Show(Window window)
     {

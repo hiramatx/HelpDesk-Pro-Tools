@@ -34,107 +34,56 @@ public partial class MainViewModel : ViewModelBase
     // ------------------------------------------------------------------ Header
 
     // Two different users:
-    //   - the app login (login box): shown in the header, green dot when they're in Domain Admins
+    //   - the account the app runs as (the login box starts the app as it): shown in the header, green
+    //     dot when it's in Domain Admins. The remote tools run as this account.
     //   - the Windows desktop user: whose profile c$ Share opens on the left
-    // The remote tools themselves still run as the Windows account the app runs as (Environment.UserName).
 
-    /// <summary>The user logged in to the app, or null when nobody is.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsLoggedIn), nameof(IsDomainAdmin), nameof(HeaderUserName), nameof(IndicatorToolTip), nameof(UserDetailsToolTip))]
-    public partial AppLogin? Login { get; set; }
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HeaderUserName), nameof(IndicatorToolTip))]
-    [NotifyCanExecuteChangedFor(nameof(LogInCommand), nameof(LogOutCommand))]
-    public partial bool IsCheckingLogin { get; set; }
-
-    /// <summary>Why a kept login couldn't be checked (e.g. the domain was unreachable).</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IndicatorToolTip))]
-    public partial string? LoginProblem { get; set; }
-
-    public bool IsLoggedIn => Login is not null;
-
-    /// <summary>Green dot when true, red otherwise (also when nobody is logged in).</summary>
-    public bool IsDomainAdmin => Login?.IsDomainAdmin == true;
-
-    public string HeaderUserName => Login?.UserName ?? (IsCheckingLogin ? "Logging in..." : "Not logged in");
-
-    public string IndicatorToolTip =>
-        IsCheckingLogin ? "Checking your login with Active Directory..."
-        : Login is null ? LoginProblem ?? "Not logged in to the app"
-        : Login.IsDomainAdmin ? $"{Login.UserName} is a Domain Admin"
-        : $"{Login.UserName} is not a Domain Admin";
+    /// <summary>The account the app runs as.</summary>
+    public string HeaderUserName { get; } = Environment.UserName;
 
     /// <summary>The user logged on to Windows on this PC (not necessarily the account the app runs as).</summary>
     public string WindowsUserName { get; } = WindowsSession.UserName;
 
-    /// <summary>Hover text on the header name: the three accounts in play.</summary>
-    public string UserDetailsToolTip =>
-        $"App login: {Login?.LoginName ?? "none"}\nWindows user: {WindowsUserName}\nApp runs as: {Environment.UserDomainName}\\{Environment.UserName}";
+    /// <summary>Green dot when true, red otherwise.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IndicatorToolTip))]
+    public partial bool IsDomainAdmin { get; set; }
 
-    /// <summary>
-    /// Called once the main window is open: logs in with the kept login if there is one, otherwise
-    /// shows the login box.
-    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IndicatorToolTip))]
+    public partial bool IsCheckingDomainAdmin { get; set; } = true;
+
+    /// <summary>Why Domain Admins couldn't be checked (e.g. no domain controller reachable).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IndicatorToolTip))]
+    public partial string? DomainAdminProblem { get; set; }
+
+    public string IndicatorToolTip =>
+        IsCheckingDomainAdmin ? "Checking Domain Admins membership..."
+        : DomainAdminProblem is { } problem ? problem
+        : IsDomainAdmin ? $"{HeaderUserName} is a Domain Admin"
+        : $"{HeaderUserName} is not a Domain Admin";
+
+    /// <summary>Hover text on the header name.</summary>
+    public string UserDetailsToolTip =>
+        $"Running as: {Environment.UserDomainName}\\{Environment.UserName}\nWindows user: {WindowsUserName}\n\n" +
+        "To log in as another account, close the app and hold Shift while starting it.";
+
+    /// <summary>Called once the main window is open: checks Domain Admins in the background.</summary>
     public async Task StartAsync()
     {
-        var saved = await Task.Run(() => CredentialStore.Load());
-        if (saved is { } kept)
+        try
         {
-            IsCheckingLogin = true;
-            try
-            {
-                Login = await Task.Run(() => AppLoginService.LogIn(kept.UserName, kept.Password));
-                return;
-            }
-            catch (AppLoginException ex) when (!ex.WrongPassword)
-            {
-                // Offline or no DC: keep the saved login for next time, and let them retry with "Log in".
-                LoginProblem = $"Could not check your saved login. {ex.Message}";
-                return;
-            }
-            catch (AppLoginException)
-            {
-                // Password changed or account gone: forget it, so a stale password isn't tried on every
-                // start (that could lock the account out). Ask again below.
-                await Task.Run(() => CredentialStore.Delete());
-                _settings.Current.KeepLoggedIn = false;
-                _settings.Save();
-            }
-            finally
-            {
-                IsCheckingLogin = false;
-            }
+            IsDomainAdmin = await Task.Run(() => AppLoginService.IsCurrentUserDomainAdmin());
         }
-
-        await LogIn();
-    }
-
-    private bool CanChangeLogin() => !IsCheckingLogin;
-
-    [RelayCommand(CanExecute = nameof(CanChangeLogin))]
-    private async Task LogIn()
-    {
-        var login = await _dialogs.ShowLoginAsync(
-            Login?.LoginName ?? _settings.Current.LastLoginName ?? Environment.UserName,
-            _settings.Current.KeepLoggedIn);
-        if (login is null) return; // "Not now": keep whatever was there
-
-        Login = login;
-        LoginProblem = null;
-        _settings.Current.LastLoginName = login.LoginName;
-        _settings.Current.KeepLoggedIn = CredentialStore.Load() is not null;
-        _settings.Save();
-    }
-
-    /// <summary>Logs out of the app and forgets a kept login.</summary>
-    [RelayCommand(CanExecute = nameof(CanChangeLogin))]
-    private void LogOut()
-    {
-        CredentialStore.Delete();
-        Login = null;
-        LoginProblem = null;
+        catch (Exception ex)
+        {
+            DomainAdminProblem = ex is AppLoginException ? ex.Message : $"Could not check Domain Admins: {ex.Message}";
+        }
+        finally
+        {
+            IsCheckingDomainAdmin = false;
+        }
     }
 
     [ObservableProperty]

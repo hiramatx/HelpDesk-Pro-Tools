@@ -7,7 +7,7 @@ Avalonia UI 12 · .NET 10 · MVVM (CommunityToolkit.Mvvm) · Designed by Hiram M
 
 **[Download the latest release](https://github.com/hiramatx/HelpDesk-Pro-Tools/releases/latest)** (Windows x64 zip)
 
-Extract the zip and run `HelpDeskProTools.exe`, ideally as your admin account (the remote tools run as the Windows account the app runs as). The release is self-contained (.NET is included), so nothing needs to be installed, and it can run straight from a file share.
+Extract the zip and run `HelpDeskProTools.exe`, then log in with your admin account (see [App login](#app-login)). The release is self-contained (.NET is included), so nothing needs to be installed, and it can run straight from a file share.
 
 ## Features
 
@@ -15,7 +15,7 @@ The main window opens as tall as the monitor's usable area (screen minus taskbar
 
 | Card | What it does |
 |---|---|
-| **Header** | Light / dark theme toggle (neutral grey), the user logged in to the app with a dot (green = member of Domain Admins, red = not, or not logged in), and **Log in** / **Log out**. Hover the name to see the app login, the Windows user and the account the app runs as |
+| **Header** | Light / dark theme toggle (neutral grey), the account the app runs as with a dot (green = member of Domain Admins, red = not). Hover the name to see the Windows user too |
 | **Remote PC** | Editable PC name box with saved history (last 30, stored in `%AppData%\HelpDeskProTools\settings.json`). **Get PC Details** (or Enter) opens the details window |
 | **Remote Tools** | SFC Scan, Remote PS, Cleanup Temp Folders, Download Log Files, Ping, c$ Share, Remote Assist, Remote Admin (RDP), Computer Management, Reboot (with confirmation), Add / Remove Temporary Admin, Add Remote Desktop, Send Message. Every tool except Remove Temporary Admin checks that a valid PC name is entered first |
 | **Local Tools** | AD Users & Computers, Windows Terminal |
@@ -23,12 +23,13 @@ The main window opens as tall as the monitor's usable area (screen minus taskbar
 
 ### App login
 
-When the app starts it shows a login box (domain user name and password, e.g. `jdoe`, `CORP\jdoe` or `jdoe@corp.local`). The account is checked against Active Directory, and the header dot turns green when it is a member of **Domain Admins** (nested groups count; the group is matched by its SID, so a renamed group still works). **Not now** skips it; the dot stays red and **Log in** in the header opens the box again.
+Double-click the exe or a shortcut and a login box opens. Log in with the account to run the tools as (e.g. `CORP\jdoe-adm`, `jdoe-adm` or a UPN): the app starts again as that account, the same way "Run as different user" does, and the login box closes. **Run as &lt;you&gt; instead** opens the app as the Windows user without logging in. Starting the app with "Run as different user" still works and skips the box.
 
-- **Keep me logged in** saves the login in Windows Credential Manager (entry `HelpDeskProTools/AppLogin`, encrypted by Windows for your account on this PC) and logs in automatically on the next start, checking AD again each time. `settings.json` only keeps the last user name and the checkbox state, never the password.
-- If the saved password no longer works it is deleted and the login box is shown, so an old password isn't retried on every start. If the domain can't be reached the saved login is kept and the dot's tooltip says why.
-- **Log out** logs out and deletes the saved login.
-- The login only decides the header name and dot. The remote tools still run as the Windows account the app runs as.
+- **Keep me logged in** saves the login in Windows Credential Manager (entry `HelpDeskProTools/AppLogin`, encrypted by Windows for your Windows account on this PC). Next time the app starts as that account straight away, without the box. `settings.json` only keeps the last user name and the checkbox state, never the password.
+- **Hold Shift** while starting the app to get the box anyway (to use another account, or untick Keep me logged in to forget the saved login).
+- If the saved password stops working (changed, expired, account locked) it is deleted and the box opens with the reason, so an old password isn't retried on every start.
+- The account needs read access to the app's folder (matters when it runs from a file share).
+- The header shows the account the app runs as, with a green dot when it is in **Domain Admins** (checked in AD, nested groups count, matched by SID so a renamed group still works) and red when it isn't or AD can't be reached (hover the dot for why). Hover the name to see the Windows user too.
 
 ### How each remote tool runs
 
@@ -60,7 +61,7 @@ The main window fills the right half of its screen and **PC Details** opens fill
 
 ## Requirements on the admin PC / targets
 
-- Domain-joined workstation, app run as your admin account
+- Domain-joined workstation, app logged in as your admin account
 - RSAT: Active Directory tools (for **AD Console**)
 - PowerShell 7 (`pwsh`) recommended; Windows PowerShell 5.1 is used as a fallback
 - Targets: WinRM enabled (SFC Scan, Remote PS), admin share `c$`, WMI/RPC reachable through the firewall

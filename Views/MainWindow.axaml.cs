@@ -22,12 +22,12 @@ public partial class MainWindow : Window
         WindowPlacement.SnapToHalf(this, Screens.Primary, left: false);
         Opened += (_, _) => WindowPlacement.SnapToHalf(this, Screens.ScreenFromWindow(this) ?? Screens.Primary, left: false);
 
-        // App login (kept login, or the login box) once the window is on screen, so the box has an owner.
+        // Domain Admins check for the header dot, once the window is on screen.
         Opened += (_, _) => Dispatcher.UIThread.Post(async () =>
         {
             if (DataContext is not MainViewModel vm) return;
             try { await vm.StartAsync(); }
-            catch { /* a login problem must never close the app; "Log in" in the header still works */ }
+            catch { /* the dot just stays red */ }
         }, DispatcherPriority.Background);
     }
 

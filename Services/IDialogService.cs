@@ -23,7 +23,4 @@ public interface IDialogService
     Task<bool> ConfirmAsync(string title, string message, string confirmText);
 
     Task ShowErrorAsync(string title, string message);
-
-    /// <summary>Shows the login box over the main window. Returns null when it's closed without logging in.</summary>
-    Task<AppLogin?> ShowLoginAsync(string? userName, bool keepLoggedIn);
 }
