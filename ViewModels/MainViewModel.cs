@@ -33,12 +33,109 @@ public partial class MainViewModel : ViewModelBase
 
     // ------------------------------------------------------------------ Header
 
-    public string UserName { get; } = Environment.UserName;
+    // Two different users:
+    //   - the app login (login box): shown in the header, green dot when they're in Domain Admins
+    //   - the Windows desktop user: whose profile c$ Share opens on the left
+    // The remote tools themselves still run as the Windows account the app runs as (Environment.UserName).
 
-    public bool IsAdminAccount => UserName.EndsWith("-admin", StringComparison.OrdinalIgnoreCase);
+    /// <summary>The user logged in to the app, or null when nobody is.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsLoggedIn), nameof(IsDomainAdmin), nameof(HeaderUserName), nameof(IndicatorToolTip), nameof(UserDetailsToolTip))]
+    public partial AppLogin? Login { get; set; }
 
-    /// <summary>The user's standard account name ("-admin" removed).</summary>
-    public string StandardUserName => IsAdminAccount ? UserName[..^"-admin".Length] : UserName;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HeaderUserName), nameof(IndicatorToolTip))]
+    [NotifyCanExecuteChangedFor(nameof(LogInCommand), nameof(LogOutCommand))]
+    public partial bool IsCheckingLogin { get; set; }
+
+    /// <summary>Why a kept login couldn't be checked (e.g. the domain was unreachable).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IndicatorToolTip))]
+    public partial string? LoginProblem { get; set; }
+
+    public bool IsLoggedIn => Login is not null;
+
+    /// <summary>Green dot when true, red otherwise (also when nobody is logged in).</summary>
+    public bool IsDomainAdmin => Login?.IsDomainAdmin == true;
+
+    public string HeaderUserName => Login?.UserName ?? (IsCheckingLogin ? "Logging in..." : "Not logged in");
+
+    public string IndicatorToolTip =>
+        IsCheckingLogin ? "Checking your login with Active Directory..."
+        : Login is null ? LoginProblem ?? "Not logged in to the app"
+        : Login.IsDomainAdmin ? $"{Login.UserName} is a Domain Admin"
+        : $"{Login.UserName} is not a Domain Admin";
+
+    /// <summary>The user logged on to Windows on this PC (not necessarily the account the app runs as).</summary>
+    public string WindowsUserName { get; } = WindowsSession.UserName;
+
+    /// <summary>Hover text on the header name: the three accounts in play.</summary>
+    public string UserDetailsToolTip =>
+        $"App login: {Login?.LoginName ?? "none"}\nWindows user: {WindowsUserName}\nApp runs as: {Environment.UserDomainName}\\{Environment.UserName}";
+
+    /// <summary>
+    /// Called once the main window is open: logs in with the kept login if there is one, otherwise
+    /// shows the login box.
+    /// </summary>
+    public async Task StartAsync()
+    {
+        var saved = await Task.Run(() => CredentialStore.Load());
+        if (saved is { } kept)
+        {
+            IsCheckingLogin = true;
+            try
+            {
+                Login = await Task.Run(() => AppLoginService.LogIn(kept.UserName, kept.Password));
+                return;
+            }
+            catch (AppLoginException ex) when (!ex.WrongPassword)
+            {
+                // Offline or no DC: keep the saved login for next time, and let them retry with "Log in".
+                LoginProblem = $"Could not check your saved login. {ex.Message}";
+                return;
+            }
+            catch (AppLoginException)
+            {
+                // Password changed or account gone: forget it, so a stale password isn't tried on every
+                // start (that could lock the account out). Ask again below.
+                await Task.Run(() => CredentialStore.Delete());
+                _settings.Current.KeepLoggedIn = false;
+                _settings.Save();
+            }
+            finally
+            {
+                IsCheckingLogin = false;
+            }
+        }
+
+        await LogIn();
+    }
+
+    private bool CanChangeLogin() => !IsCheckingLogin;
+
+    [RelayCommand(CanExecute = nameof(CanChangeLogin))]
+    private async Task LogIn()
+    {
+        var login = await _dialogs.ShowLoginAsync(
+            Login?.LoginName ?? _settings.Current.LastLoginName ?? Environment.UserName,
+            _settings.Current.KeepLoggedIn);
+        if (login is null) return; // "Not now": keep whatever was there
+
+        Login = login;
+        LoginProblem = null;
+        _settings.Current.LastLoginName = login.LoginName;
+        _settings.Current.KeepLoggedIn = CredentialStore.Load() is not null;
+        _settings.Save();
+    }
+
+    /// <summary>Logs out of the app and forgets a kept login.</summary>
+    [RelayCommand(CanExecute = nameof(CanChangeLogin))]
+    private void LogOut()
+    {
+        CredentialStore.Delete();
+        Login = null;
+        LoginProblem = null;
+    }
 
     [ObservableProperty]
     public partial bool IsDarkTheme { get; set; }
@@ -172,12 +269,11 @@ public partial class MainViewModel : ViewModelBase
     {
         if (!TryGetPc(out var pc)) return;
 
-        // Moving files between the tech's PC and the target PC, with the account this app runs as
-        // (e.g. d.smith-admin):
-        //   left  - the tech's own profile on this PC  - C:\Users\d.smith ("-admin" removed)
-        //   right - the target PC's C: drive           - \\PC\c$
-        var usersFolder = System.IO.Path.GetDirectoryName(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)) ?? @"C:\Users";
-        var local = System.IO.Path.Combine(usersFolder, StandardUserName);
+        // Moving files between the tech's PC and the target PC, with the account this app runs as:
+        //   left  - the Windows logged-in user's profile on this PC - e.g. C:\Users\d.smith
+        //   right - the target PC's C: drive                         - \\PC\c$
+        var local = WindowsSession.ProfilePath;
+        var usersFolder = System.IO.Path.GetDirectoryName(local) ?? @"C:\Users";
         var remote = $@"\\{pc}\c$";
 
         try

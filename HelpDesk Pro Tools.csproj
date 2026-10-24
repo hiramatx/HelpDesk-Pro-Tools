@@ -3,7 +3,7 @@
     <RootNamespace>HelpDesk_Pro_Tools</RootNamespace>
     <AssemblyName>HelpDeskProTools</AssemblyName>
     <!-- 5.x = the C# / Avalonia rewrite (the earlier WPF tools ended at 3.0; 4.x was skipped) -->
-    <Version>5.3.0</Version>
+    <Version>5.5.0</Version>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
@@ -38,6 +38,7 @@
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="System.DirectoryServices" Version="10.0.0" />
+    <PackageReference Include="System.DirectoryServices.AccountManagement" Version="10.0.0" />
     <PackageReference Include="System.Diagnostics.EventLog" Version="10.0.0" />
     <PackageReference Include="System.Management" Version="10.0.0" />
   </ItemGroup>

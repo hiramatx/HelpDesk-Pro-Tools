@@ -68,6 +68,7 @@
             <SolidColorBrush x:Key="DarkTextBrush" Color="#111827" />
             <SolidColorBrush x:Key="AdminIndicatorBrush" Color="#22C55E" />
             <SolidColorBrush x:Key="StandardIndicatorBrush" Color="#FF8C00" />
+            <SolidColorBrush x:Key="NotAdminIndicatorBrush" Color="#EF4444" />
         </ResourceDictionary>
     </Application.Resources>
 

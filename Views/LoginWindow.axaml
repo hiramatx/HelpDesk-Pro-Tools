@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="using:HelpDesk_Pro_Tools.Services"
+        xmlns:vm="using:HelpDesk_Pro_Tools.ViewModels"
+        x:Class="HelpDesk_Pro_Tools.Views.LoginWindow"
+        x:DataType="vm:LoginViewModel"
+        Icon="{x:Static svc:AppIcon.Current}"
+        Title="Log in - HelpDesk Pro Tools"
+        Width="420" SizeToContent="Height" CanResize="False" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+
+    <Border Classes="card" Margin="16">
+        <StackPanel Spacing="10">
+            <TextBlock FontSize="18" FontWeight="Bold" Text="Log in" />
+            <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                       Text="Log in with your domain account. The dot next to your name turns green when the account is in Domain Admins." />
+
+            <TextBox x:Name="UserInput" Text="{Binding UserName}" PlaceholderText="User name (jdoe or DOMAIN\jdoe)" />
+            <TextBox x:Name="PasswordInput" Text="{Binding Password}" PasswordChar="●" PlaceholderText="Password" />
+            <CheckBox Content="Keep me logged in" IsChecked="{Binding KeepLoggedIn}"
+                      ToolTip.Tip="Saves the login in Windows Credential Manager (encrypted for your Windows account) and logs in automatically next time" />
+
+            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12"
+                       IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                       Classes.error="{Binding IsError}">
+                <TextBlock.Styles>
+                    <Style Selector="TextBlock.error">
+                        <Setter Property="Foreground" Value="{StaticResource RedBrush}" />
+                    </Style>
+                </TextBlock.Styles>
+            </TextBlock>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Classes="flat" Content="Not now" Width="110" IsCancel="True" Click="Close_Click" />
+                <Button Classes="flat primary" Content="Log in" Width="110" IsDefault="True" Command="{Binding LogInCommand}" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>
