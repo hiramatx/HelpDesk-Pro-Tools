@@ -7,7 +7,7 @@ Avalonia UI 12 · .NET 10 · MVVM (CommunityToolkit.Mvvm) · Designed by Hiram M
 
 **[Download the latest release](https://github.com/hiramatx/HelpDesk-Pro-Tools/releases/latest)** (Windows x64 zip)
 
-Extract the zip and run `HelpDeskProTools.exe`, ideally as your `-admin` account. The release is self-contained (.NET is included), so nothing needs to be installed, and it can run straight from a file share.
+Extract the zip and run `HelpDeskProTools.exe`, then log in with your admin account (see [App login](#app-login)). The release is self-contained (.NET is included), so nothing needs to be installed, and it can run straight from a file share.
 
 ## Features
 
@@ -15,11 +15,21 @@ The main window opens as tall as the monitor's usable area (screen minus taskbar
 
 | Card | What it does |
 |---|---|
-| **Header** | Light / dark theme toggle (neutral grey), current user with an indicator (green = `-admin` account, orange = standard) |
+| **Header** | Light / dark theme toggle (neutral grey), the account the app runs as with a dot (green = member of Domain Admins, red = not). Hover the name to see the Windows user too |
 | **Remote PC** | Editable PC name box with saved history (last 30, stored in `%AppData%\HelpDeskProTools\settings.json`). **Get PC Details** (or Enter) opens the details window |
 | **Remote Tools** | SFC Scan, Remote PS, Cleanup Temp Folders, Download Log Files, Ping, c$ Share, Remote Assist, Remote Admin (RDP), Process Manager, Reboot (with confirmation), Add / Remove Temporary Admin, Add Remote Desktop, Send Message, Computer Management. Every tool except Remove Temporary Admin checks that a valid PC name is entered first |
 | **Local Tools** | AD Users & Computers, Windows Terminal |
 | **Scripts** | Tabs (Testing, Tools, Fixes, GAD, Utilities, Installs) built from `scripts.json`; each entry becomes a button that opens the `.ps1` in Windows PowerShell (`powershell.exe`) |
+
+### App login
+
+Double-click the exe or a shortcut and a login box opens. Log in with the account to run the tools as (e.g. `CORP\jdoe-adm`, `jdoe-adm` or a UPN): the app starts again as that account, the same way "Run as different user" does, and the login box closes. **Run as &lt;you&gt; instead** opens the app as the Windows user without logging in. Starting the app with "Run as different user" still works and skips the box.
+
+- **Keep me logged in** saves the login in Windows Credential Manager (entry `HelpDeskProTools/AppLogin`, encrypted by Windows for your Windows account on this PC). Next time the app starts as that account straight away, without the box. `settings.json` only keeps the last user name and the checkbox state, never the password.
+- **Hold Shift** while starting the app to get the box anyway (to use another account, or untick Keep me logged in to forget the saved login).
+- If the saved password stops working (changed, expired, account locked) it is deleted and the box opens with the reason, so an old password isn't retried on every start.
+- The account needs read access to the app's folder (matters when it runs from a file share).
+- The header shows the account the app runs as, with a green dot when it is in **Domain Admins** (checked in AD, nested groups count, matched by SID so a renamed group still works) and red when it isn't or AD can't be reached (hover the dot for why). Hover the name to see the Windows user too.
 
 ### How each remote tool runs
 
@@ -36,7 +46,7 @@ The main window opens as tall as the monitor's usable area (screen minus taskbar
 | Add Remote Desktop | Adds a domain user to the local Remote Desktop Users and/or Direct Access Users group on the PC |
 | Send Message | `msg.exe * /server:PC` |
 | Remote PS | `pwsh` → `Enter-PSSession` |
-| c$ Share | Opens [Dockett](https://github.com/hiramatx/dockett), a dual pane file manager, with the tech's own profile on this PC (`C:\Users\<you without -admin>`) on the left and `\\PC\c$` on the right. Dockett runs as the account the app runs as, also when the app is started with "Run as different user". The build downloads Dockett's portable release (pinned version, SHA-256 checked) into `Tools\Dockett\` next to the exe; without it the button opens two folder windows instead |
+| c$ Share | Opens [Dockett](https://github.com/hiramatx/dockett), a dual pane file manager, with the Windows logged-in user's profile on this PC (e.g. `C:\Users\d.smith`, even when the app runs as another account) on the left and `\\PC\c$` on the right. Dockett runs as the account the app runs as, also when the app is started with "Run as different user". The build downloads Dockett's portable release (pinned version, SHA-256 checked) into `Tools\Dockett\` next to the exe; without it the button opens two folder windows instead |
 | Remote Assist / Remote Admin / Computer Mgmt | `msra /offerra`, `mstsc /admin`, `compmgmt.msc /computer:` |
 
 The main window fills the right half of its screen and **PC Details** opens filling the left half of the same screen (taskbar excluded). Data comes from WMI via `System.Management`, remote registry via the Remote Registry service when it is reachable (otherwise WMI `StdRegProv`, which works without the service), the `c$` share and AD via `System.DirectoryServices`. The sections are read in parallel and each card fills in as soon as its data arrives; the header shows how long the whole load took (hover it for the time of each section):
@@ -52,7 +62,7 @@ The main window fills the right half of its screen and **PC Details** opens fill
 
 ## Requirements on the admin PC / targets
 
-- Domain-joined workstation, run as your `-admin` account
+- Domain-joined workstation, app logged in as your admin account
 - RSAT: Active Directory tools (for **AD Console**)
 - PowerShell 7 (`pwsh`) recommended; Windows PowerShell 5.1 is used as a fallback
 - Targets: WinRM enabled (SFC Scan, Remote PS), admin share `c$`, WMI/RPC reachable through the firewall

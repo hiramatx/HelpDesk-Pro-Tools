@@ -38,17 +38,18 @@
                               ToolTip.Tip="Dark theme" />
                     </StackPanel>
 
-                    <!-- Account indicator: green for -admin accounts, dark orange otherwise -->
+                    <!-- Account the app runs as: green dot = in Domain Admins, red = not -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="7">
                         <Ellipse Width="10" Height="10" VerticalAlignment="Center"
                                  Fill="{StaticResource AdminIndicatorBrush}"
-                                 IsVisible="{Binding IsAdminAccount}"
-                                 ToolTip.Tip="Running as an admin account" />
+                                 IsVisible="{Binding IsDomainAdmin}"
+                                 ToolTip.Tip="{Binding IndicatorToolTip}" />
                         <Ellipse Width="10" Height="10" VerticalAlignment="Center"
-                                 Fill="{StaticResource StandardIndicatorBrush}"
-                                 IsVisible="{Binding !IsAdminAccount}"
-                                 ToolTip.Tip="Not running as an -admin account" />
-                        <TextBlock Text="{Binding UserName}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                 Fill="{StaticResource NotAdminIndicatorBrush}"
+                                 IsVisible="{Binding !IsDomainAdmin}"
+                                 ToolTip.Tip="{Binding IndicatorToolTip}" />
+                        <TextBlock Text="{Binding HeaderUserName}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"
+                                   ToolTip.Tip="{Binding UserDetailsToolTip}" />
                     </StackPanel>
                 </StackPanel>
             </Grid>
