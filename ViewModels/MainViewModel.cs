@@ -263,6 +263,12 @@ public partial class MainViewModel : ViewModelBase
         ProcessLauncher.Launch(System.IO.Path.Combine(Environment.SystemDirectory, "mstsc.exe"), $"/v:{pc} /admin"));
 
     [RelayCommand]
+    private void ProcessManager()
+    {
+        if (TryGetPc(out var pc)) _dialogs.ShowProcessManager(pc);
+    }
+
+    [RelayCommand]
     private Task ComputerManagement() => Launch(pc => ProcessLauncher.LaunchMmc("compmgmt.msc", pc));
 
     [RelayCommand]

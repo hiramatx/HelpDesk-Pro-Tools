@@ -109,7 +109,8 @@
                     <Button Classes="flat green" Content="Remote Admin" Command="{Binding RemoteAdminCommand}"
                             ToolTip.Tip="Remote Desktop (mstsc /admin)" />
 
-                    <Button Classes="flat" Content="Computer Management" Command="{Binding ComputerManagementCommand}" />
+                    <Button Classes="flat blue" Content="Process Manager" Command="{Binding ProcessManagerCommand}"
+                            ToolTip.Tip="Lists the processes running on the remote PC and ends the selected one" />
                     <Button Classes="flat red" Content="Reboot PC" Command="{Binding RebootPcCommand}" />
 
                     <Button Classes="flat purple" Content="Add Temporary Admin" Command="{Binding AddTempAdminCommand}"
@@ -120,6 +121,8 @@
                     <Button Classes="flat purple" Content="Add Remote Desktop" Command="{Binding AddRemoteDesktopCommand}"
                             ToolTip.Tip="Adds a user to Remote Desktop Users and/or Direct Access Users on the remote PC" />
                     <Button Classes="flat" Content="Send Message" Command="{Binding SendMessageCommand}" />
+
+                    <Button Classes="flat" Content="Computer Management" Command="{Binding ComputerManagementCommand}" />
                 </UniformGrid>
             </StackPanel>
         </Border>

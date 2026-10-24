@@ -17,7 +17,7 @@ The main window opens as tall as the monitor's usable area (screen minus taskbar
 |---|---|
 | **Header** | Light / dark theme toggle (neutral grey), the account the app runs as with a dot (green = member of Domain Admins, red = not). Hover the name to see the Windows user too |
 | **Remote PC** | Editable PC name box with saved history (last 30, stored in `%AppData%\HelpDeskProTools\settings.json`). **Get PC Details** (or Enter) opens the details window |
-| **Remote Tools** | SFC Scan, Remote PS, Cleanup Temp Folders, Download Log Files, Ping, c$ Share, Remote Assist, Remote Admin (RDP), Computer Management, Reboot (with confirmation), Add / Remove Temporary Admin, Add Remote Desktop, Send Message. Every tool except Remove Temporary Admin checks that a valid PC name is entered first |
+| **Remote Tools** | SFC Scan, Remote PS, Cleanup Temp Folders, Download Log Files, Ping, c$ Share, Remote Assist, Remote Admin (RDP), Process Manager, Reboot (with confirmation), Add / Remove Temporary Admin, Add Remote Desktop, Send Message, Computer Management. Every tool except Remove Temporary Admin checks that a valid PC name is entered first |
 | **Local Tools** | AD Users & Computers, Windows Terminal |
 | **Scripts** | Tabs (Testing, Tools, Fixes, GAD, Utilities, Installs) built from `scripts.json`; each entry becomes a button that opens the `.ps1` in Windows PowerShell (`powershell.exe`) |
 
@@ -39,6 +39,7 @@ Double-click the exe or a shortcut and a login box opens. Log in with the accoun
 | Cleanup Temp Folders | C# over `\\PC\c$`: Windows Temp, each user's Temp, Recycle Bin, Edge and Chrome caches, with a freed-space report |
 | Download Log Files | C# `EventLogSession` exports System/Application/Setup `.evtx` on the PC, then copies them plus CBS, DISM, Panther and CCM logs to `Desktop\RemoteLogs\PC_timestamp` |
 | Ping PC | C# `Ping` + DNS lookup, continuous (like `ping -t`) with timestamps until **Stop**, then shows statistics |
+| Process Manager | C# WMI `Win32_Process`: name, PID, user, memory (working set) and description/publisher (read from the exe over `\\PC\c$`). Filter box, click a column header to sort. **Show Microsoft services** (off by default) shows Windows and Microsoft background processes: Microsoft exes in the Windows folder or running as SYSTEM / LOCAL SERVICE / NETWORK SERVICE, plus System and protected system processes. Microsoft apps the user runs (Outlook, Teams, Edge) and `explorer.exe` are always shown. **End Task** (or Delete) ends the selected process with `Win32_Process.Terminate` after a confirmation; F5 refreshes |
 | Reboot PC | C# WMI `Win32_OperatingSystem.Win32Shutdown` (forced restart), then watches the PC go offline and come back |
 | Add Temporary Admin | Adds a domain user (`jdoe` = your own domain, or `DOMAIN\jdoe`) to the local Administrators group via `WinNT://PC/Administrators` and logs date, PC and user in `temp_admin_users.json`. A user who was already an admin is not logged |
 | Remove Temporary Admin | Lists every entry in `temp_admin_users.json` (any PC); removes the selected users from Administrators on their PC and from the file. An entry whose removal fails (e.g. PC offline) stays in the file |
