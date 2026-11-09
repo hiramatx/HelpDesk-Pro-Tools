@@ -41,8 +41,6 @@ public static class SiteSettings
     {
         var defaults = new SiteConfig();
 
-        c.AdminAccountSuffix = (c.AdminAccountSuffix ?? "").Trim();
-
         // The group name is used in a WinNT:// path, so it can't contain path separators.
         var group = (c.DirectAccessGroup ?? "").Trim();
         if (group.Length == 0)

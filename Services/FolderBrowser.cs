@@ -95,46 +95,15 @@ public static class FolderBrowser
     }
 
     /// <summary>True when this process runs as the user who is logged on to the desktop session.</summary>
-    public static bool IsRunningAsDesktopUser()
-    {
-        try
-        {
-            var user = QuerySession(WTS_USERNAME);
-            var domain = QuerySession(WTS_DOMAINNAME);
-            return string.Equals(user, Environment.UserName, StringComparison.OrdinalIgnoreCase)
-                   && string.Equals(domain, Environment.UserDomainName, StringComparison.OrdinalIgnoreCase);
-        }
-        catch
-        {
-            return true; // can't tell: behave like a normal app
-        }
-    }
-
-    private static string QuerySession(int infoClass)
-    {
-        if (!WTSQuerySessionInformation(IntPtr.Zero, WTS_CURRENT_SESSION, infoClass, out var buffer, out _))
-            throw new InvalidOperationException("WTSQuerySessionInformation failed");
-        try { return Marshal.PtrToStringUni(buffer) ?? ""; }
-        finally { WTSFreeMemory(buffer); }
-    }
+    public static bool IsRunningAsDesktopUser() => WindowsSession.IsAppRunningAsDesktopUser();
 
     // ------------------------------------------------------------------ native
-
-    private const int WTS_CURRENT_SESSION = -1;
-    private const int WTS_USERNAME = 5;
-    private const int WTS_DOMAINNAME = 7;
 
     private const uint FOS_NOCHANGEDIR = 0x00000008;
     private const uint FOS_FORCEFILESYSTEM = 0x00000040;
     private const uint FOS_DONTADDTORECENT = 0x02000000;
     private const uint FOS_FORCESHOWHIDDEN = 0x10000000;
     private const uint SIGDN_FILESYSPATH = 0x80058000;
-
-    [DllImport("wtsapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern bool WTSQuerySessionInformation(IntPtr server, int sessionId, int infoClass, out IntPtr buffer, out int bytes);
-
-    [DllImport("wtsapi32.dll")]
-    private static extern void WTSFreeMemory(IntPtr memory);
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
     private static extern void SHCreateItemFromParsingName(string path, IntPtr bindContext, ref Guid riid,

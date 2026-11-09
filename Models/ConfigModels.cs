@@ -65,9 +65,6 @@ public class TempAdminEntry
 /// <summary>Config\site.json: values that differ per organization. The defaults here apply when the file or a value is missing.</summary>
 public class SiteConfig
 {
-    /// <summary>How admin accounts are named ("jdoe-admin"); empty = no separate admin accounts.</summary>
-    public string AdminAccountSuffix { get; set; } = "-admin";
-
     /// <summary>The DirectAccess group: a local group on the PC, or an AD group if there is no local one.</summary>
     public string DirectAccessGroup { get; set; } = "Direct Access Users";
 

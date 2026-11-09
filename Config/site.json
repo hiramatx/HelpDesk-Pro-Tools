@@ -1,10 +1,6 @@
 // Settings that are specific to your organization. Everything here has a built-in default,
 // so a missing file (or a missing line) is fine. Restart the app after editing this file.
 //
-//   adminAccountSuffix   - how admin accounts are named, e.g. "-admin" for jdoe-admin.
-//                          The header dot is green when the app runs as such an account, and c$ Share
-//                          opens the profile of the same name without the suffix (C:\Users\jdoe).
-//                          "" = no separate admin accounts.
 //   directAccessGroup    - name of the DirectAccess / VPN group shown in PC Details and offered by
 //                          Add Remote Desktop. Looked up as a local group on the PC first, then in AD.
 //   highlightIpPrefixes  - IP addresses starting with one of these show in orange in PC Details
@@ -28,7 +24,6 @@
 //   scriptTabs           - tabs of the Scripts card, in this order. A category in scripts.json that
 //                          isn't listed here is added as an extra tab at the end.
 {
-  "adminAccountSuffix": "-admin",
   "directAccessGroup": "Direct Access Users",
   "highlightIpPrefixes": [ "105.195." ],
   "uptimeCautionHours": 48,
