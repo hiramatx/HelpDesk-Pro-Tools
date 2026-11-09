@@ -12,7 +12,7 @@ public static class Wildcard
         (patterns ?? Enumerable.Empty<string>())
             .Where(p => !string.IsNullOrWhiteSpace(p))
             .Select(p => new Regex("^" + Regex.Escape(p.Trim()).Replace(@"\*", ".*") + "$",
-                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking))
             .ToList();
 
     public static bool IsMatch(string value, List<Regex> patterns) => patterns.Any(p => p.IsMatch(value));

@@ -10,7 +10,8 @@ namespace HelpDesk_Pro_Tools.ViewModels;
 /// <summary>Adds a user to Remote Desktop Users and/or Direct Access Users on the PC.</summary>
 public partial class AddRemoteDesktopViewModel : ViewModelBase
 {
-    public const string RemoteDesktopGroup = "Remote Desktop Users";
+    /// <summary>The DirectAccess group named in site.json; also the checkbox label.</summary>
+    public string DirectAccessGroup { get; } = SiteSettings.Current.DirectAccessGroup;
 
     public AddRemoteDesktopViewModel(string pcName)
     {
@@ -49,8 +50,8 @@ public partial class AddRemoteDesktopViewModel : ViewModelBase
     {
         var user = UserName.Trim();
         var groups = new List<string>();
-        if (AddRemoteDesktopUser) groups.Add(RemoteDesktopGroup);
-        if (AddDirectAccessUser) groups.Add(PcInfoService.DirectAccessGroupName);
+        if (AddRemoteDesktopUser) groups.Add(LocalGroupService.RemoteDesktopUsers);
+        if (AddDirectAccessUser) groups.Add(DirectAccessGroup);
 
         IsBusy = true;
         IsError = false;

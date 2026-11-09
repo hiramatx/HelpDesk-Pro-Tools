@@ -36,8 +36,11 @@ public class DialogService : IDialogService
 
     public void ShowProcessManager(string pc)
     {
-        var vm = new ProcessManagerViewModel(pc, ConfirmAsync);
-        Show(new ProcessManagerWindow { DataContext = vm });
+        // The End Task confirmation belongs to this window, not to the main one.
+        var window = new ProcessManagerWindow();
+        var vm = new ProcessManagerViewModel(pc, (title, message, confirmText) => ConfirmAsync(window, title, message, confirmText));
+        window.DataContext = vm;
+        Show(window);
         _ = vm.RefreshAsync();
     }
 
@@ -56,10 +59,15 @@ public class DialogService : IDialogService
         Show(new AddRemoteDesktopWindow { DataContext = new AddRemoteDesktopViewModel(pc) });
     }
 
-    public async Task<bool> ConfirmAsync(string title, string message, string confirmText)
+    public Task<bool> ConfirmAsync(string title, string message, string confirmText) =>
+        ConfirmAsync(Owner, title, message, confirmText);
+
+    /// <summary>False (not confirmed) when there is no visible window to own the dialog.</summary>
+    private static async Task<bool> ConfirmAsync(Window? owner, string title, string message, string confirmText)
     {
+        if (owner is not { IsVisible: true }) return false;
         var dialog = MessageDialog.CreateConfirm(title, message, confirmText, danger: true);
-        return Owner is { } owner && await dialog.ShowDialog<bool>(owner);
+        return await dialog.ShowDialog<bool>(owner);
     }
 
     public async Task ShowErrorAsync(string title, string message)

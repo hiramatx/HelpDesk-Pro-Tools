@@ -34,9 +34,6 @@ public static class PcSection
 /// <summary>Collects hardware / user / software details from a remote PC via WMI, the admin share and Active Directory.</summary>
 public static class PcInfoService
 {
-    /// <summary>Name of the DirectAccess group: looked up as a local group on the PC first, then in AD.</summary>
-    public const string DirectAccessGroupName = "Direct Access Users";
-
     private const string CurrentVersionKey = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion";
     private const string NetlogonParametersKey = @"SYSTEM\CurrentControlSet\Services\Netlogon\Parameters";
 
@@ -378,7 +375,7 @@ public static class PcInfoService
         }
 
         // Omit the domain: "CORP\jdoe" -> "jdoe"
-        var sam = WithoutDomain(account);
+        var sam = AccountName.WithoutDomain(account);
         d.LoggedInUser = sam;
         d.LoggedInFrom = from;
         try { d.LoggedInUserOu = ActiveDirectoryService.GetUserOu(sam); }
@@ -480,13 +477,15 @@ public static class PcInfoService
         }
 
         // The three groups are independent lookups, so they run at the same time.
+        // The DirectAccess group (named in site.json) is a local group on the PC, or an AD group if there is no local one.
+        var directAccessGroup = SiteSettings.Current.DirectAccessGroup;
         var admins = Task.Run(() => SafeGroup(() =>
-            Join(LocalGroupService.GetMembers(pc, "Administrators", computerName), exclusions.FilterLocalAdmins)));
+            Join(LocalGroupService.GetMembers(pc, LocalGroupService.Administrators, computerName), exclusions.FilterLocalAdmins)));
         var rdp = Task.Run(() => SafeGroup(() =>
-            Join(LocalGroupService.GetMembers(pc, "Remote Desktop Users", computerName), exclusions.FilterRemoteDesktopUsers)));
+            Join(LocalGroupService.GetMembers(pc, LocalGroupService.RemoteDesktopUsers, computerName), exclusions.FilterRemoteDesktopUsers)));
         var directAccess = Task.Run(() => SafeGroup(() =>
-            Join(LocalGroupService.GetMembers(pc, DirectAccessGroupName, computerName)
-                 ?? ActiveDirectoryService.GetGroupMembers(DirectAccessGroupName), exclusions.FilterDirectAccessUsers)));
+            Join(LocalGroupService.GetMembers(pc, directAccessGroup, computerName)
+                 ?? ActiveDirectoryService.GetGroupMembers(directAccessGroup), exclusions.FilterDirectAccessUsers)));
 
         d.LocalAdmins = admins.Result;
         d.RemoteDesktopUsers = rdp.Result;
@@ -502,7 +501,7 @@ public static class PcInfoService
         if (members is null) return new GroupMembers("Group not found", false);
 
         var shown = filter(members)
-            .Select(WithoutDomain)
+            .Select(AccountName.WithoutDomain)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -510,10 +509,6 @@ public static class PcInfoService
             ? new GroupMembers("(none)", false)
             : new GroupMembers(string.Join(", ", shown), true);
     }
-
-    // "CORP\Domain Admins" -> "Domain Admins"
-    private static string WithoutDomain(string name) =>
-        name.Contains('\\') ? name[(name.LastIndexOf('\\') + 1)..] : name;
 
     private static GroupMembers SafeGroup(Func<GroupMembers> read)
     {

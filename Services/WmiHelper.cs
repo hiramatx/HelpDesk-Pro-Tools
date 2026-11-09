@@ -29,4 +29,22 @@ public static class WmiHelper
             results.Add(obj);
         return results;
     }
+
+    /// <summary>
+    /// Owner of a Win32_Process. Both are null when it can't be read: the process ended while
+    /// listing, or it belongs to an account this user may not query.
+    /// </summary>
+    public static (string? User, string? Domain) GetOwner(ManagementObject process)
+    {
+        try
+        {
+            var args = new object[2];
+            if (Convert.ToInt32(process.InvokeMethod("GetOwner", args)) == 0)
+                return (args[0] as string, args[1] as string);
+        }
+        catch (Exception ex) when (ex is ManagementException or System.Runtime.InteropServices.COMException or UnauthorizedAccessException)
+        {
+        }
+        return (null, null);
+    }
 }

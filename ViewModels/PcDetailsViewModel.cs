@@ -201,36 +201,34 @@ public partial class PcDetailsViewModel : ViewModelBase
         yield return new("PC OU", d.PcOu);
     }
 
-    // Uptime: green up to 48 hours, yellow over 48 hours, red over 96 hours.
-    private const double UptimeCautionHours = 48;
-    private const double UptimeBadHours = 96;
+    // The thresholds and ranges below are per organization: see Config\site.json.
 
+    // Uptime: green up to the caution hours, yellow above them, red above the bad hours.
     private static InfoField BuildUptime(DateTime? lastBoot)
     {
         if (lastBoot is not { } boot) return new InfoField("Uptime", "");
 
+        var site = SiteSettings.Current;
         var uptime = DateTime.Now - boot;
-        var (status, tip) = uptime.TotalHours switch
-        {
-            > UptimeBadHours => (FieldStatus.Bad, $"Up more than {UptimeBadHours:0} hours - a restart is overdue"),
-            > UptimeCautionHours => (FieldStatus.Caution, $"Up more than {UptimeCautionHours:0} hours"),
-            _ => (FieldStatus.Ok, $"Restarted within the last {UptimeCautionHours:0} hours"),
-        };
+        var (status, tip) = uptime.TotalHours > site.UptimeBadHours
+            ? (FieldStatus.Bad, $"Up more than {site.UptimeBadHours:0} hours - a restart is overdue")
+            : uptime.TotalHours > site.UptimeCautionHours
+                ? (FieldStatus.Caution, $"Up more than {site.UptimeCautionHours:0} hours")
+                : (FieldStatus.Ok, $"Restarted within the last {site.UptimeCautionHours:0} hours");
         return new InfoField("Uptime", FormatUptime(uptime)) { Status = status, ToolTip = tip };
     }
 
-    // IP: orange on the 105.195.x.x range, green otherwise.
-    private const string OrangeIpPrefix = "105.195.";
-
+    // IP: orange when it starts with one of highlightIpPrefixes, green otherwise (no colour if none are set).
     private static InfoField BuildIpAddress(string ipText)
     {
+        var prefixes = SiteSettings.Current.HighlightIpPrefixes;
         var ips = ipText.Split(", ", StringSplitOptions.RemoveEmptyEntries)
             .Where(ip => System.Net.IPAddress.TryParse(ip, out _))
             .ToList();
-        if (ips.Count == 0) return new InfoField("IP Address", ipText);
+        if (ips.Count == 0 || prefixes.Count == 0) return new InfoField("IP Address", ipText);
 
-        var status = ips.Any(ip => ip.StartsWith(OrangeIpPrefix, StringComparison.Ordinal)) ? FieldStatus.Warn : FieldStatus.Ok;
-        return new InfoField("IP Address", ipText) { Status = status };
+        var highlighted = ips.Any(ip => prefixes.Any(p => ip.StartsWith(p, StringComparison.Ordinal)));
+        return new InfoField("IP Address", ipText) { Status = highlighted ? FieldStatus.Warn : FieldStatus.Ok };
     }
 
     private static IEnumerable<InfoField> BuildUsers(PcDetails d)
@@ -242,8 +240,8 @@ public partial class PcDetailsViewModel : ViewModelBase
         // Members are highlighted: local admins red, remote access groups orange.
         // "(none)", "Group not found" and read errors stay in normal text.
         yield return Group("Local Admin Members", d.LocalAdmins, FieldStatus.Bad);
-        yield return Group("Remote Desktop Users", d.RemoteDesktopUsers, FieldStatus.Warn);
-        yield return Group("Direct Access Users", d.DirectAccessUsers, FieldStatus.Warn);
+        yield return Group(LocalGroupService.RemoteDesktopUsers, d.RemoteDesktopUsers, FieldStatus.Warn);
+        yield return Group(SiteSettings.Current.DirectAccessGroup, d.DirectAccessUsers, FieldStatus.Warn);
     }
 
     private static InfoField Group(string label, GroupMembers group, FieldStatus statusWhenPopulated) =>
@@ -282,11 +280,10 @@ public partial class PcDetailsViewModel : ViewModelBase
         yield return BuildGpo("GPO User Date", d.GpoUser);
     }
 
-    // GPO dates: green if Group Policy applied within the last 7 days (today included), red otherwise.
-    private const int GpoFreshDays = 7;
-
+    // GPO dates: green if Group Policy applied within the last gpoFreshDays days (today included), red otherwise.
     private static InfoField BuildGpo(string label, GpoDate gpo)
     {
+        var freshDays = SiteSettings.Current.GpoFreshDays;
         if (gpo.When is not { } when)
         {
             // No user logged in isn't a problem, so it stays in normal text.
@@ -294,13 +291,13 @@ public partial class PcDetailsViewModel : ViewModelBase
             return new InfoField(label, gpo.Problem ?? "Unknown") { Status = status };
         }
 
-        var fresh = when.Date >= DateTime.Today.AddDays(-(GpoFreshDays - 1));
+        var fresh = when.Date >= DateTime.Today.AddDays(-(freshDays - 1));
         return new InfoField(label, when.ToString("g"))
         {
             Status = fresh ? FieldStatus.Ok : FieldStatus.Bad,
             ToolTip = fresh
-                ? $"Group Policy applied within the last {GpoFreshDays} days"
-                : $"Group Policy has not applied in the last {GpoFreshDays} days - try gpupdate /force",
+                ? $"Group Policy applied within the last {freshDays} days"
+                : $"Group Policy has not applied in the last {freshDays} days - try gpupdate /force",
         };
     }
 

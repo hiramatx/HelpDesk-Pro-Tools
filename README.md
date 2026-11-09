@@ -15,26 +15,26 @@ The main window opens as tall as the monitor's usable area (screen minus taskbar
 
 | Card | What it does |
 |---|---|
-| **Header** | Light / dark theme toggle (neutral grey), current user with an indicator (green = `-admin` account, orange = standard) |
+| **Header** | Light / dark theme toggle (neutral grey), current user with an indicator (green = admin account, orange = standard; the admin suffix, `-admin` by default, is set in `site.json`) |
 | **Remote PC** | Editable PC name box with saved history (last 30, stored in `%AppData%\HelpDeskProTools\settings.json`). **Get PC Details** (or Enter) opens the details window |
 | **Remote Tools** | SFC Scan, Remote PS, Cleanup Temp Folders, Download Log Files, Ping, c$ Share, Remote Assist, Remote Admin (RDP), Process Manager, Reboot (with confirmation), Add / Remove Temporary Admin, Add Remote Desktop, Send Message, Computer Management. Every tool except Remove Temporary Admin checks that a valid PC name is entered first |
 | **Local Tools** | AD Users & Computers, Windows Terminal |
-| **Scripts** | Tabs (Testing, Tools, Fixes, GAD, Utilities, Installs) built from `scripts.json`; each entry becomes a button that opens the `.ps1` in Windows PowerShell (`powershell.exe`) |
+| **Scripts** | Tabs (listed in `site.json`) built from `scripts.json`; each entry becomes a button that opens the `.ps1` in Windows PowerShell (`powershell.exe`) |
 
 ### How each remote tool runs
 
 | Tool | Implementation |
 |---|---|
-| SFC Scan | `Invoke-Command` → `DISM /RestoreHealth` + `sfc /scannow`, output streamed live into a pop-up (the only one using PowerShell because DISM and SFC have no managed API) |
-| Cleanup Temp Folders | C# over `\\PC\c$`: Windows Temp, each user's Temp, Recycle Bin, Edge and Chrome caches, with a freed-space report |
+| SFC Scan | `Invoke-Command` → `DISM /RestoreHealth` + `sfc /scannow`, output streamed live into a pop-up (the only one using PowerShell because DISM and SFC have no managed API). DISM takes its repair files from Windows Update unless `dismSource` in `site.json` names your own source files |
+| Cleanup Temp Folders | C# over `\\PC\c$`: Windows Temp, each user's Temp, Recycle Bin, Edge and Chrome caches, with a freed-space report. Junctions and symbolic links are never followed |
 | Download Log Files | C# `EventLogSession` exports System/Application/Setup `.evtx` on the PC, then copies them plus CBS, DISM, Panther and CCM logs to `Desktop\RemoteLogs\PC_timestamp` |
 | Ping PC | C# `Ping` + DNS lookup, continuous (like `ping -t`) with timestamps until **Stop**, then shows statistics |
-| Process Manager | C# WMI `Win32_Process`: name, PID, user, memory (working set) and description/publisher (read from the exe over `\\PC\c$`). Filter box, click a column header to sort. **Show Microsoft services** (off by default) shows Windows and Microsoft background processes: Microsoft exes in the Windows folder or running as SYSTEM / LOCAL SERVICE / NETWORK SERVICE, plus System and protected system processes. Microsoft apps the user runs (Outlook, Teams, Edge) and `explorer.exe` are always shown. **End Task** (or Delete) ends the selected process with `Win32_Process.Terminate` after a confirmation; F5 refreshes |
+| Process Manager | C# WMI `Win32_Process`: name, PID, user, memory (working set) and description/publisher (read from the exe over `\\PC\c$`). Filter box, click a column header to sort. **Show Microsoft services** (off by default) shows Windows and Microsoft background processes: Microsoft exes in the Windows folder or running as SYSTEM / LOCAL SERVICE / NETWORK SERVICE, plus System and protected system processes. Microsoft apps the user runs (Outlook, Teams, Edge) and `explorer.exe` are always shown. **End Task** (or Delete) ends the selected process with `Win32_Process.Terminate` after a confirmation (System and System Idle Process can't be ended); F5 refreshes |
 | Reboot PC | C# WMI `Win32_OperatingSystem.Win32Shutdown` (forced restart), then watches the PC go offline and come back |
 | Add Temporary Admin | Adds a domain user (`jdoe` = your own domain, or `DOMAIN\jdoe`) to the local Administrators group via `WinNT://PC/Administrators` and logs date, PC and user in `temp_admin_users.json`. A user who was already an admin is not logged |
 | Remove Temporary Admin | Lists every entry in `temp_admin_users.json` (any PC); removes the selected users from Administrators on their PC and from the file. An entry whose removal fails (e.g. PC offline) stays in the file |
-| Add Remote Desktop | Adds a domain user to the local Remote Desktop Users and/or Direct Access Users group on the PC |
-| Send Message | `msg.exe * /server:PC` |
+| Add Remote Desktop | Adds a domain user to the local Remote Desktop Users and/or Direct Access group (named in `site.json`) on the PC |
+| Send Message | `msg.exe * /server:PC` (gives up after 30 seconds if the PC doesn't answer) |
 | Remote PS | `pwsh` → `Enter-PSSession` |
 | c$ Share | Opens [Dockett](https://github.com/hiramatx/dockett), a dual pane file manager, with the tech's own profile on this PC (`C:\Users\<you without -admin>`) on the left and `\\PC\c$` on the right. Dockett runs as the account the app runs as, also when the app is started with "Run as different user". The build downloads Dockett's portable release (pinned version, SHA-256 checked) into `Tools\Dockett\` next to the exe; without it the button opens two folder windows instead |
 | Remote Assist / Remote Admin / Computer Mgmt | `msra /offerra`, `mstsc /admin`, `compmgmt.msc /computer:` |
@@ -44,10 +44,10 @@ The main window fills the right half of its screen and **PC Details** opens fill
 | Section | Fields |
 |---|---|
 | Utilization | Liquid-fill gauges for CPU / RAM / C: (green up to 50%, yellow 51-85%, red 86-100%) |
-| PC | Name, model, OS with version and build (e.g. 25H2), serial, UAC/LUA, domain controller, IP (orange on 105.195.x.x, green otherwise), network speed in Gbits/sec, last boot, uptime (green up to 48 h, yellow over 48 h, red over 96 h), OU |
-| Users | Logged-in user (no domain) and OU, console or remote (RDP), members of local Administrators, Remote Desktop Users and "Direct Access Users" (local group, or the AD group if there is no local one), minus anyone in `excluded_users.json`. Names are shown without the domain; local admins are red, Remote Desktop and Direct Access members orange |
+| PC | Name, model, OS with version and build (e.g. 25H2), serial, UAC/LUA, domain controller, IP (orange on the ranges listed in `site.json`, green otherwise), network speed in Gbits/sec, last boot, uptime (green / yellow / red; 48 h and 96 h by default, set in `site.json`), OU |
+| Users | Logged-in user (no domain) and OU, console or remote (RDP), members of local Administrators, Remote Desktop Users and the Direct Access group (local group, or the AD group if there is no local one), minus anyone in `excluded_users.json`. Names are shown without the domain; local admins are red, Remote Desktop and Direct Access members orange |
 | Hardware | Processor, total RAM, RAM sticks per slot, MAC, each video card (minus those in `excluded_video_cards.json`), monitor (name, resolution) and fixed drive (total / used / free) |
-| Software | Programs listed in `software.json`, coloured against `baselines.json` (green = up to date, red = outdated or required but missing, orange = couldn't check; hover for details), plus GPO system and user dates: when Group Policy last applied to the PC and the logged-in user (green within the last 7 days, today included; red otherwise) |
+| Software | Programs listed in `software.json`, coloured against `baselines.json` (green = up to date, red = outdated or required but missing, orange = couldn't check; hover for details), plus GPO system and user dates: when Group Policy last applied to the PC and the logged-in user (green within the last 7 days by default, today included; red otherwise) |
 | Device Manager | Devices with errors, if any |
 
 ## Requirements on the admin PC / targets
@@ -64,6 +64,7 @@ All settings files live in `Config\` next to `HelpDeskProTools.exe`. When the ap
 
 | File | Controls |
 |---|---|
+| `site.json` | Everything specific to your organization: admin account suffix, Direct Access group, highlighted IP ranges, uptime and Group Policy thresholds, DISM repair source, Scripts tabs. Read at startup |
 | `scripts.json` | Script buttons in the Scripts tabs. Edit it from the app (**Edit scripts.json**) and press **Reload** |
 | `software.json` | Programs in the PC Details Software card, and where to find each version |
 | `baselines.json` | Minimum version per program (green / red colouring) |
@@ -71,7 +72,25 @@ All settings files live in `Config\` next to `HelpDeskProTools.exe`. When the ap
 | `excluded_video_cards.json` | Video cards hidden from the Hardware card (e.g. virtual display adapters) |
 | `temp_admin_users.json` | Written by the app: users added with **Add Temporary Admin** (date, PC, user). Created on first use; keep it when upgrading |
 
-Changes to `software.json`, `baselines.json` and the two `excluded_*.json` files apply the next time PC Details is opened or refreshed. PC-name history and the theme choice stay per user in `%AppData%\HelpDeskProTools\settings.json`.
+Changes to `software.json`, `baselines.json` and the two `excluded_*.json` files apply the next time PC Details is opened or refreshed. Changes to `site.json` apply after restarting the app. PC-name history and the theme choice stay per user in `%AppData%\HelpDeskProTools\settings.json`; unexpected errors are recorded in `crash.log` in the same folder.
+
+### site.json
+
+```jsonc
+{
+  "adminAccountSuffix": "-admin",          // jdoe-admin = admin account; "" = no separate admin accounts
+  "directAccessGroup": "Direct Access Users",
+  "highlightIpPrefixes": [ "10.99." ],      // these IPs show in orange; [] = no colouring
+  "uptimeCautionHours": 48,                // yellow above this
+  "uptimeBadHours": 96,                    // red above this
+  "gpoFreshDays": 7,
+  "dismSource": "wim:C:\\Sources\\install.wim:1",   // SFC Scan repair source; "" = Windows Update
+  "dismLimitAccess": true,                 // with a source: don't contact Windows Update
+  "scriptTabs": [ "Testing", "Tools", "Fixes", "Utilities", "Installs" ]
+}
+```
+
+Every value is optional; a missing file or value uses the built-in default. `dismSource` is DISM's `/Source` as seen from the remote PC: `wim:<file>:<index>`, `esd:<file>:<index>` or a folder, matching the PC's Windows version and build.
 
 ### scripts.json
 
@@ -88,7 +107,7 @@ Changes to `software.json`, `baselines.json` and the two `excluded_*.json` files
 }
 ```
 
-A category name that isn't one of the six default tabs becomes an extra tab.
+A category name that isn't listed in `scriptTabs` in `site.json` becomes an extra tab at the end.
 
 ### software.json
 
@@ -155,16 +174,17 @@ Not case-sensitive, and `*` is a wildcard.
 
 ```
 Controls/     LiquidFillGauge (custom-drawn animated gauge)
-Models/       AppSettings, PcDetails, ScriptEntry, ConfigModels (software / exclusions)
+Models/       AppSettings, PcDetails, ScriptEntry, ConfigModels (software / exclusions / site)
 Services/     RemoteOperations, PcInfoService, SoftwareInventoryService, ActiveDirectoryService,
               LocalGroupService, TempAdminLog, UserExclusions, RemoteRegistry, ProcessLauncher, DialogService,
-              SettingsService, ScriptCatalogService, ConfigFiles, ThemeService, WmiHelper, AppIcon
+              SettingsService, ScriptCatalogService, ConfigFiles, SiteSettings, ThemeService, WmiHelper, AppIcon,
+              RemoteProcessManager, RemoteProcessList, RemotePath, AccountName, HostName, Wildcard, CrashLog
 ViewModels/   MainViewModel, PcDetailsViewModel, OutputViewModel, SendMessageViewModel, ScriptCategoryViewModel,
-              AddTempAdminViewModel, RemoveTempAdminViewModel, AddRemoteDesktopViewModel
+              AddTempAdminViewModel, RemoveTempAdminViewModel, AddRemoteDesktopViewModel, ProcessManagerViewModel
 Views/        MainWindow, PcDetailsWindow, OutputWindow, SendMessageWindow, MessageDialog,
-              AddTempAdminWindow, RemoveTempAdminWindow, AddRemoteDesktopWindow
+              AddTempAdminWindow, RemoveTempAdminWindow, AddRemoteDesktopWindow, ProcessManagerWindow
 Themes/       AppStyles.axaml (cards, flat buttons, tabs); theme colours are in App.axaml
-Config/       scripts.json, software.json, baselines.json, excluded_users.json, excluded_video_cards.json (copied next to the exe)
+Config/       site.json, scripts.json, software.json, baselines.json, excluded_users.json, excluded_video_cards.json (copied next to the exe)
 Scripts/      Sample .ps1 files referenced by scripts.json
 Resources/    hdpt.ico app icon (window, taskbar and exe; falls back to Assets\ when missing)
 ```

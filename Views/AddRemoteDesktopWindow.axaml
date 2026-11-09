@@ -17,7 +17,7 @@
 
             <StackPanel Spacing="2">
                 <CheckBox Content="Remote Desktop Users" IsChecked="{Binding AddRemoteDesktopUser}" />
-                <CheckBox Content="Direct Access Users" IsChecked="{Binding AddDirectAccessUser}" />
+                <CheckBox Content="{Binding DirectAccessGroup}" IsChecked="{Binding AddDirectAccessUser}" />
             </StackPanel>
 
             <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12"

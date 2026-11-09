@@ -24,14 +24,29 @@ public static class RemoteOperations
 
     public static async Task SfcScanAsync(string pc, Action<string> log, CancellationToken ct)
     {
+        // Repair source from site.json (dismSource); empty means DISM's default, Windows Update.
+        var site = SiteSettings.Current;
+        var source = site.DismSource;
+        var limitAccess = source.Length > 0 && site.DismLimitAccess;
+
         log($"Running DISM RestoreHealth and SFC on {pc} over WinRM. This can take 15-30 minutes...");
+        log(source.Length == 0
+            ? $"DISM repair source: Windows Update (set dismSource in {SiteSettings.FileName} to use your own source files)"
+            : $"DISM repair source: {source}{(limitAccess ? " (Windows Update not used)" : "")}");
         log("");
 
         // No managed API exists for DISM/SFC, so this one goes through PowerShell remoting.
+        // The source travels as an argument (single-quoted, quotes doubled), never as script text.
         var script = $$"""
-            Invoke-Command -ComputerName '{{pc}}' -ErrorAction Stop -ScriptBlock {
-                Write-Output '===== DISM /Online /Cleanup-Image /RestoreHealth ====='
-                DISM.exe /Online /Cleanup-Image /RestoreHealth
+            Invoke-Command -ComputerName '{{pc}}' -ErrorAction Stop -ArgumentList '{{source.Replace("'", "''")}}', ${{(limitAccess ? "true" : "false")}} -ScriptBlock {
+                param([string]$Source, [bool]$LimitAccess)
+                $dismArgs = @('/Online', '/Cleanup-Image', '/RestoreHealth')
+                if ($Source) {
+                    $dismArgs += "/Source:$Source"
+                    if ($LimitAccess) { $dismArgs += '/LimitAccess' }
+                }
+                Write-Output "===== DISM $($dismArgs -join ' ') ====="
+                DISM.exe @dismArgs
                 Write-Output ''
                 Write-Output '===== SFC /scannow ====='
                 sfc.exe /scannow
@@ -47,7 +62,7 @@ public static class RemoteOperations
 
     public static Task CleanupTempAsync(string pc, Action<string> log, CancellationToken ct) => Task.Run(() =>
     {
-        var root = $@"\\{pc}\c$";
+        var root = RemotePath.AdminShare(pc);
         if (!Directory.Exists(root))
             throw new IOException($"Cannot reach {root}. Check the PC is online and the admin share is available.");
 
@@ -56,7 +71,7 @@ public static class RemoteOperations
         void Clean(string label, string path, bool deleteSubfolders = true)
         {
             ct.ThrowIfCancellationRequested();
-            if (!Directory.Exists(path)) return;
+            if (!Directory.Exists(path) || IsLink(path)) return;
 
             var (freed, skipped) = DeleteContents(path, deleteSubfolders, ct);
             totalFreed += freed;
@@ -78,7 +93,7 @@ public static class RemoteOperations
         foreach (var profile in SafeDirs(Path.Combine(root, "Users")))
         {
             var user = Path.GetFileName(profile);
-            if (SkippedProfiles.Contains(user, StringComparer.OrdinalIgnoreCase)) continue;
+            if (SkippedProfiles.Contains(user, StringComparer.OrdinalIgnoreCase) || IsLink(profile)) continue;
 
             log("");
             log($"User: {user}");
@@ -137,6 +152,12 @@ public static class RemoteOperations
         foreach (var dir in SafeDirs(folder))
         {
             ct.ThrowIfCancellationRequested();
+            if (IsLink(dir))
+            {
+                // A junction or symlink: remove the link itself, never what it points to.
+                try { Directory.Delete(dir, false); } catch { skipped++; }
+                continue;
+            }
             var (f, s) = DeleteContents(dir, true, ct);
             freed += f;
             skipped += s;
@@ -144,6 +165,16 @@ public static class RemoteOperations
         }
 
         return (freed, skipped);
+    }
+
+    /// <summary>
+    /// True for junctions and symbolic links (and when the attributes can't be read, to stay on the safe side).
+    /// Cleanup must not follow them: a link inside a Temp folder could point at real data.
+    /// </summary>
+    private static bool IsLink(string path)
+    {
+        try { return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint); }
+        catch { return true; }
     }
 
     private static IEnumerable<string> SafeDirs(string path)
@@ -162,7 +193,7 @@ public static class RemoteOperations
 
     public static Task DownloadLogsAsync(string pc, Action<string> log, CancellationToken ct) => Task.Run(() =>
     {
-        var share = $@"\\{pc}\c$";
+        var share = RemotePath.AdminShare(pc);
         if (!Directory.Exists(share))
             throw new IOException($"Cannot reach {share}.");
 
@@ -325,14 +356,12 @@ public static class RemoteOperations
         await Task.Run(() =>
         {
             var scope = WmiHelper.Connect(pc, enablePrivileges: true);
-            using var searcher = new ManagementObjectSearcher(scope, new ObjectQuery("SELECT * FROM Win32_OperatingSystem"));
-            foreach (ManagementObject os in searcher.Get())
+            foreach (var os in WmiHelper.Query(scope, "SELECT * FROM Win32_OperatingSystem").Cast<ManagementObject>())
             {
                 using (os)
                 {
                     // 2 = Reboot, 4 = Forced
-                    var result = os.InvokeMethod("Win32Shutdown", new object[] { 6, 0 });
-                    var code = Convert.ToInt32(result);
+                    var code = Convert.ToInt32(os.InvokeMethod("Win32Shutdown", new object[] { 6, 0 }));
                     if (code != 0) throw new InvalidOperationException($"Win32Shutdown returned {code}.");
                 }
             }
@@ -368,6 +397,8 @@ public static class RemoteOperations
 
     // ---------------------------------------------------------------- Send message
 
+    private static readonly TimeSpan SendMessageTimeout = TimeSpan.FromSeconds(30);
+
     /// <summary>Sends a message box to every session on the PC using msg.exe.</summary>
     public static async Task<(bool ok, string output)> SendMessageAsync(string pc, string message, int seconds)
     {
@@ -384,10 +415,22 @@ public static class RemoteOperations
         psi.ArgumentList.Add($"/time:{seconds}");
         psi.ArgumentList.Add(message);
 
-        using var process = Process.Start(psi)!;
+        using var process = Process.Start(psi)
+            ?? throw new InvalidOperationException("msg.exe could not be started.");
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
-        await process.WaitForExitAsync();
+
+        // msg.exe can hang for a long time on a PC that is offline or blocks the RPC call.
+        using var timeout = new CancellationTokenSource(SendMessageTimeout);
+        try
+        {
+            await process.WaitForExitAsync(timeout.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            try { process.Kill(entireProcessTree: true); } catch { /* already gone */ }
+            return (false, $"{pc} did not answer within {SendMessageTimeout.TotalSeconds:0} seconds.");
+        }
 
         var output = ((await stdout) + (await stderr)).Trim();
         return (process.ExitCode == 0, output);
