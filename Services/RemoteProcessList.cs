@@ -33,12 +33,11 @@ public sealed class RemoteProcessList
         var where = string.Join(" OR ", names.Select(n => $"Name = '{n.Replace("\\", "\\\\").Replace("'", "\\'")}'"));
         foreach (var proc in WmiHelper.Query(cimv2, $"SELECT Handle, Name FROM Win32_Process WHERE {where}").Cast<ManagementObject>())
         {
-            var args = new object[2];
-            var ok = Convert.ToInt32(proc.InvokeMethod("GetOwner", args)) == 0;
+            var (user, domain) = WmiHelper.GetOwner(proc);
             var name = proc["Name"]?.ToString() ?? "";
             if (!byName.TryGetValue(name, out var list))
                 byName[name] = list = new List<RemoteProcess>();
-            list.Add(new RemoteProcess(proc, ok ? args[0] as string : null, ok ? args[1] as string : null));
+            list.Add(new RemoteProcess(proc, user, domain));
         }
         return new RemoteProcessList(byName);
     }

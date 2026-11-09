@@ -9,6 +9,9 @@ namespace HelpDesk_Pro_Tools.Services;
 /// <summary>Lists and changes members of a local group on a remote PC (WinNT provider, same as Computer Management).</summary>
 public static class LocalGroupService
 {
+    public const string Administrators = "Administrators";
+    public const string RemoteDesktopUsers = "Remote Desktop Users";
+
     // NERR_GroupNotFound
     private const int GroupNotFound = unchecked((int)0x800708AC);
     // ERROR_MEMBER_NOT_IN_ALIAS / ERROR_MEMBER_IN_ALIAS
@@ -56,6 +59,12 @@ public static class LocalGroupService
 
     private static bool Change(string pc, string group, string user, string method, int noChangeCode)
     {
+        // Both names end up in a WinNT:// path and may come from a shared file (temp_admin_users.json).
+        if (!HostName.IsValid(pc))
+            throw new InvalidOperationException($"\"{pc}\" is not a valid computer name.");
+        if (!AccountName.IsValid(user))
+            throw new InvalidOperationException($"\"{user}\" is not a valid user name. Use jdoe or DOMAIN\\jdoe.");
+
         var memberPath = UserPath(user);
         using var entry = new DirectoryEntry($"WinNT://{pc}/{group},group");
         try

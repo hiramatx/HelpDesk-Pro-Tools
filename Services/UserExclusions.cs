@@ -18,10 +18,10 @@ public sealed class UserExclusions
 
     private UserExclusions(ExcludedUsers config)
     {
-        _all = Compile(config.AllGroups);
-        _localAdmins = Compile(config.LocalAdmins);
-        _remoteDesktopUsers = Compile(config.RemoteDesktopUsers);
-        _directAccessUsers = Compile(config.DirectAccessUsers);
+        _all = Wildcard.Compile(config.AllGroups);
+        _localAdmins = Wildcard.Compile(config.LocalAdmins);
+        _remoteDesktopUsers = Wildcard.Compile(config.RemoteDesktopUsers);
+        _directAccessUsers = Wildcard.Compile(config.DirectAccessUsers);
     }
 
     /// <summary>Loads the file; a missing file means nothing is excluded.</summary>
@@ -40,9 +40,7 @@ public sealed class UserExclusions
     // A pattern matches the full name ("CORP\jdoe") or just the part after the backslash ("jdoe").
     private static bool IsMatch(string member, List<Regex> patterns)
     {
-        var shortName = member.Contains('\\') ? member[(member.LastIndexOf('\\') + 1)..] : member;
+        var shortName = AccountName.WithoutDomain(member);
         return patterns.Any(p => p.IsMatch(member) || p.IsMatch(shortName));
     }
-
-    private static List<Regex> Compile(IEnumerable<string>? patterns) => Wildcard.Compile(patterns);
 }

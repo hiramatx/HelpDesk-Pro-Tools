@@ -1,0 +1,35 @@
+// Settings that are specific to your organization. Everything here has a built-in default,
+// so a missing file (or a missing line) is fine. Restart the app after editing this file.
+//
+//   directAccessGroup    - name of the DirectAccess / VPN group shown in PC Details and offered by
+//                          Add Remote Desktop. Looked up as a local group on the PC first, then in AD.
+//   highlightIpPrefixes  - IP addresses starting with one of these show in orange in PC Details
+//                          (for example a VPN or guest range); other addresses show in green.
+//                          [] = no colouring.
+//   uptimeCautionHours   - uptime above this shows in yellow
+//   uptimeBadHours       - uptime above this shows in red
+//   gpoFreshDays         - Group Policy dates within this many days (today included) show in green, older in red
+//   dismSource           - where SFC Scan's DISM /RestoreHealth gets its repair files (DISM's /Source option).
+//                          "" = Windows Update / WSUS (the DISM default). Otherwise, as seen from the REMOTE PC:
+//                            "wim:D:\\sources\\install.wim:1"           image 1 of a WIM file
+//                            "esd:C:\\Sources\\install.esd:6"           image 6 of an ESD file
+//                            "C:\\RepairSource\\Windows"                a folder holding a matching Windows install
+//                            "wim:\\\\server\\share\\install.wim:1"     a file share
+//                          The source must be the same Windows version and build as the PC.
+//                          The remote PC reads the source itself, and PowerShell remoting normally can't pass
+//                          your logon on to another server. If DISM reports that a file share source can't
+//                          be found, copy the files onto the PC and name that local path instead.
+//   dismLimitAccess      - true = use only dismSource and never contact Windows Update (/LimitAccess).
+//                          Ignored when dismSource is "".
+//   scriptTabs           - tabs of the Scripts card, in this order. A category in scripts.json that
+//                          isn't listed here is added as an extra tab at the end.
+{
+  "directAccessGroup": "Direct Access Users",
+  "highlightIpPrefixes": [ "105.195." ],
+  "uptimeCautionHours": 48,
+  "uptimeBadHours": 96,
+  "gpoFreshDays": 7,
+  "dismSource": "",
+  "dismLimitAccess": false,
+  "scriptTabs": [ "Testing", "Tools", "Fixes", "GAD", "Utilities", "Installs" ]
+}

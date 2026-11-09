@@ -70,7 +70,7 @@ public static class ActiveDirectoryService
     // Splits on commas that are not escaped with a backslash.
     private static string[] SplitDn(string dn)
     {
-        var parts = new System.Collections.Generic.List<string>();
+        var parts = new List<string>();
         var current = new StringBuilder();
         for (var i = 0; i < dn.Length; i++)
         {

@@ -31,8 +31,8 @@ public static class SoftwareInventoryService
     {
         try
         {
-            return (ConfigFiles.Load<SoftwareCatalog>(CatalogFile)?.Software ?? new())
-                .Where(e => !string.IsNullOrWhiteSpace(e.Name) && !string.IsNullOrWhiteSpace(e.Process))
+            return Entries(ConfigFiles.Load<SoftwareCatalog>(CatalogFile))
+                .Where(e => !string.IsNullOrWhiteSpace(e.Process))
                 .Select(e => e.Process!.Trim())
                 .ToList();
         }
@@ -41,6 +41,10 @@ public static class SoftwareInventoryService
             return Array.Empty<string>(); // Read reports the problem in the Software card
         }
     }
+
+    /// <summary>The usable entries of software.json (a stray null or an entry without a name is left out).</summary>
+    private static IEnumerable<SoftwareEntry> Entries(SoftwareCatalog? catalog) =>
+        (catalog?.Software ?? new()).Where(e => e is not null && !string.IsNullOrWhiteSpace(e.Name));
 
     public static List<SoftwareResult> Read(string pc, RemoteRegistry? registry, Lazy<RemoteProcessList> processes)
     {
@@ -64,7 +68,7 @@ public static class SoftwareInventoryService
         var uninstall = new Lazy<List<(string Name, string Key)>>(() => ReadUninstallNames(registry));
         var results = new List<SoftwareResult>();
 
-        foreach (var entry in catalog.Software.Where(e => !string.IsNullOrWhiteSpace(e.Name)))
+        foreach (var entry in Entries(catalog))
         {
             var name = entry.Name.Trim();
             var label = string.IsNullOrWhiteSpace(entry.Label) ? $"{name} Version" : entry.Label.Trim();
@@ -123,8 +127,8 @@ public static class SoftwareInventoryService
 
         foreach (var file in entry.Files ?? Enumerable.Empty<string>())
         {
-            var unc = ToRemotePath(pc, file);
-            if (!File.Exists(unc)) continue;
+            // Only C:\... (read through the admin share) and UNC paths; anything else is skipped.
+            if (RemotePath.ToUnc(pc, file) is not { } unc || !File.Exists(unc)) continue;
             var info = FileVersionInfo.GetVersionInfo(unc);
             var version = (info.ProductVersion ?? info.FileVersion)?.Trim();
             if (!string.IsNullOrEmpty(version)) return new Found(version, version);
@@ -157,7 +161,8 @@ public static class SoftwareInventoryService
     /// <summary>Reads a text file on the PC and returns what the pattern's first ( ) group captured.</summary>
     private static Found? ReadContent(string pc, FileContentRef content)
     {
-        var unc = ToRemotePath(pc, content.Path);
+        if (RemotePath.ToUnc(pc, content.Path) is not { } unc)
+            return new Found("Invalid path", null, $"\"{content.Path}\" in software.json must be a full path (C:\\... or \\\\server\\share\\...)");
         if (!File.Exists(unc)) return null;
 
         string text;
@@ -207,15 +212,6 @@ public static class SoftwareInventoryService
                 .ToList());
         }
         return list;
-    }
-
-    /// <summary>"C:\Program Files\x.exe" -> "\\PC\c$\Program Files\x.exe". UNC paths are used as-is.</summary>
-    private static string ToRemotePath(string pc, string path)
-    {
-        path = path.Trim();
-        return path.Length >= 3 && path[1] == ':' && path[2] == '\\'
-            ? $@"\\{pc}\{char.ToLowerInvariant(path[0])}$\{path[3..]}"
-            : path;
     }
 
     // ------------------------------------------------------------------ colouring

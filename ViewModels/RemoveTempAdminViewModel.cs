@@ -79,7 +79,7 @@ public partial class RemoveTempAdminViewModel : ViewModelBase
         {
             try
             {
-                var removed = await Task.Run(() => LocalGroupService.RemoveMember(entry.Pc, "Administrators", entry.User));
+                var removed = await Task.Run(() => LocalGroupService.RemoveMember(entry.Pc, LocalGroupService.Administrators, entry.User));
                 await Task.Run(() => TempAdminLog.Remove(entry.Pc, entry.User));
                 lines.Add(removed
                     ? $"Removed {entry.User} from Administrators on {entry.Pc}."

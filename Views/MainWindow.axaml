@@ -119,7 +119,7 @@
                             ToolTip.Tip="Removes users logged in temp_admin_users.json from the Administrators group of their PC" />
 
                     <Button Classes="flat purple" Content="Add Remote Desktop" Command="{Binding AddRemoteDesktopCommand}"
-                            ToolTip.Tip="Adds a user to Remote Desktop Users and/or Direct Access Users on the remote PC" />
+                            ToolTip.Tip="Adds a user to Remote Desktop Users and/or the Direct Access group on the remote PC" />
                     <Button Classes="flat" Content="Send Message" Command="{Binding SendMessageCommand}" />
 
                     <Button Classes="flat" Content="Computer Management" Command="{Binding ComputerManagementCommand}" />

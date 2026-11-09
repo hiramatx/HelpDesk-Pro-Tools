@@ -27,7 +27,20 @@ public static class TempAdminLog
     public static string FilePath => ConfigFiles.PathOf(FileName);
 
     /// <summary>All entries, oldest first; empty if the file doesn't exist yet.</summary>
-    public static List<TempAdminEntry> Load() => ConfigFiles.Load<List<TempAdminEntry>>(FileName) ?? new();
+    public static List<TempAdminEntry> Load() => Clean(ConfigFiles.Load<List<TempAdminEntry>>(FileName));
+
+    // The file is shared and hand-editable: drop stray nulls so one bad line doesn't break the list.
+    private static List<TempAdminEntry> Clean(List<TempAdminEntry>? entries)
+    {
+        var list = (entries ?? new()).Where(e => e is not null).ToList();
+        foreach (var e in list)
+        {
+            e.Date ??= "";
+            e.Pc ??= "";
+            e.User ??= "";
+        }
+        return list;
+    }
 
     public static void Add(string pc, string user) => Update(entries =>
     {
@@ -52,9 +65,9 @@ public static class TempAdminLog
         List<TempAdminEntry> entries;
         try
         {
-            entries = string.IsNullOrWhiteSpace(text)
-                ? new()
-                : JsonSerializer.Deserialize<List<TempAdminEntry>>(text, ConfigFiles.JsonOptions) ?? new();
+            entries = Clean(string.IsNullOrWhiteSpace(text)
+                ? null
+                : JsonSerializer.Deserialize<List<TempAdminEntry>>(text, ConfigFiles.JsonOptions));
         }
         catch (JsonException ex)
         {

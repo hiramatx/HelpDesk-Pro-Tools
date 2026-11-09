@@ -41,7 +41,7 @@ public partial class AddTempAdminViewModel : ViewModelBase
         Status = $"Adding {user} to Administrators on {PcName}...";
         try
         {
-            var added = await Task.Run(() => LocalGroupService.AddMember(PcName, "Administrators", user));
+            var added = await Task.Run(() => LocalGroupService.AddMember(PcName, LocalGroupService.Administrators, user));
             if (added)
             {
                 await Task.Run(() => TempAdminLog.Add(PcName, user));

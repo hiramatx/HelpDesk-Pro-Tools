@@ -127,7 +127,7 @@ public partial class ProcessManagerViewModel : ViewModelBase
 
     private void ApplyFilter()
     {
-        var selectedPid = SelectedProcess?.Pid;
+        var selected = SelectedProcess;
         var search = SearchText?.Trim();
 
         var visible = _all.Where(p => ShowMicrosoftServices || !p.IsMicrosoftService);
@@ -144,7 +144,7 @@ public partial class ProcessManagerViewModel : ViewModelBase
         foreach (var p in Sort(visible))
             Processes.Add(p);
 
-        SelectedProcess = Processes.FirstOrDefault(p => p.Pid == selectedPid);
+        SelectedProcess = Processes.FirstOrDefault(p => p.Pid == selected?.Pid && p.Created == selected.Created);
 
         var hidden = _all.Count(p => p.IsMicrosoftService);
         Summary = ShowMicrosoftServices || hidden == 0
@@ -154,7 +154,7 @@ public partial class ProcessManagerViewModel : ViewModelBase
 
     // ------------------------------------------------------------------ End task
 
-    private bool CanEndTask() => !IsBusy && SelectedProcess is not null;
+    private bool CanEndTask() => !IsBusy && SelectedProcess is { CanEnd: true };
 
     [RelayCommand(CanExecute = nameof(CanEndTask))]
     private async Task EndTask()
@@ -176,7 +176,7 @@ public partial class ProcessManagerViewModel : ViewModelBase
         Status = $"Ending {proc.Name}...";
         try
         {
-            await Task.Run(() => _manager.Kill(proc.Pid, proc.Name));
+            await Task.Run(() => _manager.Kill(proc));
         }
         catch (Exception ex)
         {

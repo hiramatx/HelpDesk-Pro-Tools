@@ -11,8 +11,6 @@ namespace HelpDesk_Pro_Tools.ViewModels;
 
 public partial class MainViewModel : ViewModelBase
 {
-    private const int MaxHistory = 30;
-
     private readonly SettingsService _settings;
     private readonly IDialogService _dialogs;
     private readonly ScriptCatalogService _scriptCatalog;
@@ -29,6 +27,10 @@ public partial class MainViewModel : ViewModelBase
         ThemeService.Apply(IsDarkTheme);
 
         LoadScripts();
+
+        // Shown once the main window is up, so the message has a window to belong to.
+        if (SiteSettings.LoadError is { } siteError)
+            Dispatcher.UIThread.Post(() => _ = _dialogs.ShowErrorAsync(SiteSettings.FileName, siteError), DispatcherPriority.Background);
     }
 
     // ------------------------------------------------------------------ Header
@@ -148,7 +150,7 @@ public partial class MainViewModel : ViewModelBase
         if (index < 0)
         {
             PcHistory.Insert(0, pc);
-            while (PcHistory.Count > MaxHistory) PcHistory.RemoveAt(PcHistory.Count - 1);
+            while (PcHistory.Count > SettingsService.MaxHistory) PcHistory.RemoveAt(PcHistory.Count - 1);
         }
         else if (index > 0)
         {
@@ -223,7 +225,7 @@ public partial class MainViewModel : ViewModelBase
         //   right - the target PC's C: drive                         - \\PC\c$
         var local = WindowsSession.ProfilePath;
         var usersFolder = System.IO.Path.GetDirectoryName(local) ?? @"C:\Users";
-        var remote = $@"\\{pc}\c$";
+        var remote = RemotePath.AdminShare(pc);
 
         try
         {
@@ -308,18 +310,8 @@ public partial class MainViewModel : ViewModelBase
     }
 
     /// <summary>Validates the PC, then runs a launcher and reports launch failures.</summary>
-    private async Task Launch(Action<string> start)
-    {
-        if (!TryGetPc(out var pc)) return;
-        try
-        {
-            start(pc);
-        }
-        catch (Exception ex)
-        {
-            await _dialogs.ShowErrorAsync("Launch failed", ex.Message);
-        }
-    }
+    private Task Launch(Action<string> start) =>
+        TryGetPc(out var pc) ? LaunchLocal(() => start(pc)) : Task.CompletedTask;
 
     // ------------------------------------------------------------------ Local tools
 
@@ -362,7 +354,7 @@ public partial class MainViewModel : ViewModelBase
         catch (Exception ex)
         {
             _ = _dialogs.ShowErrorAsync("scripts.json", $"Could not read {_scriptCatalog.CatalogPath}\n\n{ex.Message}");
-            foreach (var tab in ScriptCatalogService.DefaultTabs)
+            foreach (var tab in ScriptCatalogService.Tabs)
                 ScriptTabs.Add(new ScriptCategoryViewModel(tab, Enumerable.Empty<ScriptItemViewModel>()));
         }
 
