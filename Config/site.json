@@ -5,7 +5,7 @@
 //                          Add Remote Desktop. Looked up as a local group on the PC first, then in AD.
 //   highlightIpPrefixes  - IP addresses starting with one of these show in orange in PC Details
 //                          (for example a VPN or guest range); other addresses show in green.
-//                          [] = no colouring.
+//                          Example: [ "10.99.", "192.168.50." ]. [] = no colouring.
 //   uptimeCautionHours   - uptime above this shows in yellow
 //   uptimeBadHours       - uptime above this shows in red
 //   gpoFreshDays         - Group Policy dates within this many days (today included) show in green, older in red
@@ -25,7 +25,7 @@
 //                          isn't listed here is added as an extra tab at the end.
 {
   "directAccessGroup": "Direct Access Users",
-  "highlightIpPrefixes": [ "105.195." ],
+  "highlightIpPrefixes": [],
   "uptimeCautionHours": 48,
   "uptimeBadHours": 96,
   "gpoFreshDays": 7,
