@@ -33,12 +33,58 @@ public partial class MainViewModel : ViewModelBase
 
     // ------------------------------------------------------------------ Header
 
-    public string UserName { get; } = Environment.UserName;
+    // Two different users:
+    //   - the account the app runs as (the login box starts the app as it): shown in the header, green
+    //     dot when it's in Domain Admins. The remote tools run as this account.
+    //   - the Windows desktop user: whose profile c$ Share opens on the left
 
-    public bool IsAdminAccount => UserName.EndsWith("-admin", StringComparison.OrdinalIgnoreCase);
+    /// <summary>The account the app runs as.</summary>
+    public string HeaderUserName { get; } = Environment.UserName;
 
-    /// <summary>The user's standard account name ("-admin" removed).</summary>
-    public string StandardUserName => IsAdminAccount ? UserName[..^"-admin".Length] : UserName;
+    /// <summary>The user logged on to Windows on this PC (not necessarily the account the app runs as).</summary>
+    public string WindowsUserName { get; } = WindowsSession.UserName;
+
+    /// <summary>Green dot when true, red otherwise.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IndicatorToolTip))]
+    public partial bool IsDomainAdmin { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IndicatorToolTip))]
+    public partial bool IsCheckingDomainAdmin { get; set; } = true;
+
+    /// <summary>Why Domain Admins couldn't be checked (e.g. no domain controller reachable).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IndicatorToolTip))]
+    public partial string? DomainAdminProblem { get; set; }
+
+    public string IndicatorToolTip =>
+        IsCheckingDomainAdmin ? "Checking Domain Admins membership..."
+        : DomainAdminProblem is { } problem ? problem
+        : IsDomainAdmin ? $"{HeaderUserName} is a Domain Admin"
+        : $"{HeaderUserName} is not a Domain Admin";
+
+    /// <summary>Hover text on the header name.</summary>
+    public string UserDetailsToolTip =>
+        $"Running as: {Environment.UserDomainName}\\{Environment.UserName}\nWindows user: {WindowsUserName}\n\n" +
+        "To log in as another account, close the app and hold Shift while starting it.";
+
+    /// <summary>Called once the main window is open: checks Domain Admins in the background.</summary>
+    public async Task StartAsync()
+    {
+        try
+        {
+            IsDomainAdmin = await Task.Run(() => AppLoginService.IsCurrentUserDomainAdmin());
+        }
+        catch (Exception ex)
+        {
+            DomainAdminProblem = ex is AppLoginException ? ex.Message : $"Could not check Domain Admins: {ex.Message}";
+        }
+        finally
+        {
+            IsCheckingDomainAdmin = false;
+        }
+    }
 
     [ObservableProperty]
     public partial bool IsDarkTheme { get; set; }
@@ -172,12 +218,11 @@ public partial class MainViewModel : ViewModelBase
     {
         if (!TryGetPc(out var pc)) return;
 
-        // Moving files between the tech's PC and the target PC, with the account this app runs as
-        // (e.g. d.smith-admin):
-        //   left  - the tech's own profile on this PC  - C:\Users\d.smith ("-admin" removed)
-        //   right - the target PC's C: drive           - \\PC\c$
-        var usersFolder = System.IO.Path.GetDirectoryName(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)) ?? @"C:\Users";
-        var local = System.IO.Path.Combine(usersFolder, StandardUserName);
+        // Moving files between the tech's PC and the target PC, with the account this app runs as:
+        //   left  - the Windows logged-in user's profile on this PC - e.g. C:\Users\d.smith
+        //   right - the target PC's C: drive                         - \\PC\c$
+        var local = WindowsSession.ProfilePath;
+        var usersFolder = System.IO.Path.GetDirectoryName(local) ?? @"C:\Users";
         var remote = $@"\\{pc}\c$";
 
         try

@@ -9,7 +9,7 @@ namespace HelpDesk_Pro_Tools.Services;
 /// to the exe (the build downloads its portable release, see the csproj).
 ///
 /// Dockett takes the left and right pane folders as its first two arguments. It is started with
-/// UseShellExecute = false, so it runs as the account this app runs as (e.g. d.smith-admin), even when
+/// UseShellExecute = false, so it runs as the account this app runs as (e.g. an admin account), even when
 /// the app was started with "Run as different user".
 /// </summary>
 public static class DockettLauncher
